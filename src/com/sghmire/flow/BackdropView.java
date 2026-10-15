@@ -2,7 +2,6 @@ package com.sghmire.flow;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
@@ -10,14 +9,12 @@ import android.graphics.RadialGradient;
 import android.graphics.Shader;
 import android.view.View;
 
-import java.util.Random;
-
 /**
- * Matte dark backdrop: near-black charcoal with a fine light grain, a soft diagonal sheen from
- * the top-left, a gentle light pool above the dock and darker edges.
+ * Matte dark backdrop: smooth near-black charcoal with a soft diagonal sheen from the top-left,
+ * a gentle light pool above the dock and darker edges. Gradients are dithered, so no banding.
  */
 public class BackdropView extends View {
-    /** Gradients and grain are rasterised once; per-frame GPU work is then a single texture blit. */
+    /** Gradients are rasterised once; per-frame GPU work is then a single texture blit. */
     private Bitmap cached;
 
     public BackdropView(Context context) {
@@ -65,20 +62,5 @@ public class BackdropView extends View {
                 new int[] {0x00000000, 0x00000000, 0x73000000},
                 new float[] {0f, 0.55f, 1f}, Shader.TileMode.CLAMP));
         c.drawRect(0, 0, w, h, p);
-
-        // Fine light grain for a matte, slightly textured finish.
-        p.setShader(new BitmapShader(grain(), Shader.TileMode.REPEAT, Shader.TileMode.REPEAT));
-        c.drawRect(0, 0, w, h, p);
-    }
-
-    private static Bitmap grain() {
-        int size = 256;
-        int[] px = new int[size * size];
-        Random r = new Random(7);
-        for (int i = 0; i < px.length; i++) {
-            int a = r.nextInt(100) < 55 ? r.nextInt(9) : 0;
-            px[i] = (a << 24) | 0xFFFFFF;
-        }
-        return Bitmap.createBitmap(px, size, size, Bitmap.Config.ARGB_8888);
     }
 }
