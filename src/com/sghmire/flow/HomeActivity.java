@@ -624,6 +624,7 @@ public class HomeActivity extends Activity {
             main.post(() -> {
                 continueWatching = watchNext;
                 contentByPkg = byPkg;
+                contextPkg = focusedDockPkg != null && byPkg.containsKey(focusedDockPkg) ? focusedDockPkg : null;
                 showContext(contextPkg, false);
             });
         });
@@ -641,16 +642,18 @@ public class HomeActivity extends Activity {
 
     // ---------------------------------------------------------------- Context row
 
-    /** App whose content the top row shows; null means the cross-app Continue Watching. */
+    /** App whose content the top row shows; null means the row is left blank. */
     private String contextPkg;
     private String shownContext = "\u0000";
     private List<WatchItem> continueWatching = new ArrayList<>();
     private java.util.Map<String, List<WatchItem>> contentByPkg = new java.util.HashMap<>();
     private final Runnable applyContext = () -> showContext(contextPkg, true);
+    private String focusedDockPkg;
 
     /** Called when focus lands on a dock tile: after a short rest, the top row follows that app. */
     private void onDockFocus(String pkg) {
-        // Apps that publish nothing fall back to the cross-app Continue Watching row.
+        focusedDockPkg = pkg;
+        // Apps that publish nothing leave the row blank.
         String next = pkg != null && contentByPkg.containsKey(pkg) ? pkg : null;
         if (next == null ? contextPkg == null : next.equals(contextPkg)) {
             main.removeCallbacks(applyContext);
@@ -662,9 +665,9 @@ public class HomeActivity extends Activity {
     }
 
     private void showContext(String pkg, boolean animate) {
-        List<WatchItem> items = pkg == null ? continueWatching : contentByPkg.get(pkg);
-        if (items == null) items = continueWatching;
-        String label = pkg == null ? "Continue Watching" : labelFor(pkg);
+        List<WatchItem> items = pkg == null ? null : contentByPkg.get(pkg);
+        if (items == null) items = Collections.emptyList();
+        String label = pkg == null ? "" : labelFor(pkg);
         String key = pkg == null ? "" : pkg;
         boolean contextChanged = !key.equals(shownContext);
         shownContext = key;
