@@ -19,9 +19,11 @@ A compact Android TV home screen built with native Java views: a smooth blue-cha
 
 ### Opening an app
 
-Recorded on an onn. 4K Streaming Box; the GIF shows Netflix opening from the dock, remaining in the app for about fourteen seconds, and returning home. Netflix’s home/profile screen was confirmed on the TV, but appears black in ADB recordings.
+Recorded on an onn. 4K Streaming Box. The demo follows Nuvio Legacy from its dock tile through its splash screen to its loaded home screen.
 
-![Netflix opening](docs/images/opening.gif)
+![Nuvio opening and landing](docs/images/opening.gif)
+
+[View the loaded Nuvio screen](docs/images/app-landing.png)
 
 ### Personalization and recent apps
 
@@ -33,7 +35,7 @@ Recorded on an onn. 4K Streaming Box; the GIF shows Netflix opening from the doc
 
 ### Recent apps and closing animations
 
-Open Recents with double Home, then press Up to dismiss the selected Netflix app. The capture shows the Netflix card moving upward and the empty state.
+Open Recents with double Home, then press Up to dismiss the selected Nuvio app. The capture shows the Nuvio card moving upward and the empty state.
 
 ![Recent apps entrance and app dismissal](docs/images/recents-dismiss.gif)
 
