@@ -723,6 +723,7 @@ public class HomeActivity extends Activity {
         stage.setAlpha(1f);
         stage.setLayerType(View.LAYER_TYPE_NONE, null);
         hero.clear();
+        hero.setAlpha(1f);
         if (lastLaunched != null) lastLaunched.setAlpha(1f);
     }
 
@@ -749,8 +750,10 @@ public class HomeActivity extends Activity {
         stage.setScaleY(0.94f);
         stage.setAlpha(0.4f);
         tile.setAlpha(0f);
-        hero.setVisibility(View.VISIBLE);
-        hero.setProgress(1f);
+        // No app-looking splash behind the closing app: if Home is pressed twice, the system only
+        // tells us after its fade, and a splash would flash up before Recents. Dimmed home
+        // is safe for both cases; the tile flies back in once the fade is over.
+        hero.setVisibility(View.INVISIBLE);
         returnStaged = true;
     }
 
@@ -772,7 +775,7 @@ public class HomeActivity extends Activity {
         if (!revealPending) return;
         revealPending = false;
         View tile = lastLaunched;
-        if (tile == null || !tile.isAttachedToWindow() || hero.getVisibility() != View.VISIBLE) {
+        if (tile == null || !tile.isAttachedToWindow() || stage.getAlpha() >= 1f) {
             resetStage();
             return;
         }
@@ -785,13 +788,20 @@ public class HomeActivity extends Activity {
         float w = tile.getWidth() * zoom, h = tile.getHeight() * zoom;
         float left = loc[0] - tile.getWidth() * (zoom - sx) / 2f, top = loc[1] - tile.getHeight() * (zoom - sx) / 2f;
         hero.prepare(lastArt, lastBg, lastFill, new RectF(left, top, left + w, top + h), lastRadius * zoom);
-        hero.setProgress(1f);
+        // The tile flies back from a large size, fading in over the first part of the motion.
+        final float startAt = 0.55f;
+        hero.setProgress(startAt);
+        hero.setAlpha(0f);
+        hero.setVisibility(View.VISIBLE);
 
-        ValueAnimator shrink = ValueAnimator.ofFloat(1f, 0f);
+        ValueAnimator shrink = ValueAnimator.ofFloat(startAt, 0f);
         shrinkAnim = shrink;
-        shrink.setDuration(ms(650));
+        shrink.setDuration(ms(600));
         shrink.setInterpolator(COLLAPSE);
-        shrink.addUpdateListener(an -> hero.setProgress((float) an.getAnimatedValue()));
+        shrink.addUpdateListener(an -> {
+            hero.setProgress((float) an.getAnimatedValue());
+            hero.setAlpha(Math.min(1f, an.getAnimatedFraction() / 0.35f));
+        });
         shrink.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
@@ -802,7 +812,7 @@ public class HomeActivity extends Activity {
             }
         });
         shrink.start();
-        stage.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(ms(650))
+        stage.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(ms(600))
                 .setInterpolator(COLLAPSE).start();
     }
 
@@ -811,7 +821,7 @@ public class HomeActivity extends Activity {
     private void showRecents() {
         // Double-press from inside an app: go straight to Recents, no shrink-back animation,
         // and put the Recents backdrop up at once so the app fades directly into it.
-        boolean fromApp = revealPending || returnStaged || hero.getVisibility() == View.VISIBLE;
+        boolean fromApp = revealPending || returnStaged || stage.getAlpha() < 1f;
         cancelReturnAnimation();
         if (fromApp) recents.coverNow();
         focusBeforeRecents = getCurrentFocus();

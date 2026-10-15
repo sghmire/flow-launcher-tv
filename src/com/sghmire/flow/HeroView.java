@@ -91,6 +91,7 @@ public class HeroView extends FrameLayout {
 
     public void clear() {
         setVisibility(INVISIBLE);
+        setAlpha(1f);
         art.setImageDrawable(null);
     }
 
