@@ -1,6 +1,6 @@
 # Capture and measurement notes — 2026-10-15
 
-Device: onn. 4K Streaming Box (YOC), Android 14. Physical display size reported by Android: 3840 × 2160; configured UI override: 1920 × 1080. Screenshots are direct 1920 × 1080 ADB captures. The opening GIF is a 6.14-second screen recording (requested with an eight-second limit), converted to 960 × 540 at 15 fps with a generated palette. GIF frame rate is an export setting, not a measurement of launcher performance.
+Device: onn. 4K Streaming Box (YOC), Android 14. Physical display size reported by Android: 3840 × 2160; configured UI override: 1920 × 1080. Screenshots are direct 1920 × 1080 ADB captures. The Netflix animation GIFs were recorded at 1280 × 720 and exported at 960 × 540, 25 fps. Opening and return clips are trimmed from the same recording to focus on launcher transitions; Netflix itself appeared black in the recording. GIF frame rate is an export setting, not a measurement of launcher performance.
 
 ## Provenance
 
@@ -20,6 +20,8 @@ Frame counters were reset with `adb shell dumpsys gfxinfo com.sghmire.flow reset
 
 No repeated trials, cold-start timings, battery measurements, before/after comparison, or exhaustive device testing were performed. The captures verify visible home, app-menu, tile-style, recent-app, and launch/return flows on this device; they do not validate every feature.
 
-## Additional animation captures
+## Replacement Netflix captures
 
-Captured on the same TV on 2026-10-15: `recents-dismiss.gif` shows double-Home opening Recents, Up dismissing the YouTube card, and the empty overlay closing. `app-return.gif` separately shows Home returning from YouTube to the launcher. Both were recorded at 1280 × 720 and exported at 960 × 540, 25 fps. The Recents PNG was refreshed at 1920 × 1080. These are visual demonstrations, not additional performance samples.
+All four README screenshots and all three GIFs were recaptured using Netflix on the same TV on 2026-10-15. `opening.gif` shows the Netflix tile expanding; `app-return.gif` shows Home returning from Netflix to the launcher. `recents-dismiss.gif` shows double-Home opening Recents, Up dismissing Netflix, and the empty state. The previous YouTube recent card was dismissed before recording. Other installed apps remain visible in the dock.
+
+These are visual demonstrations, not additional performance samples. The numerical results above retain their original measurement conditions and were not relabeled as Netflix benchmarks.

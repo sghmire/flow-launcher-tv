@@ -17,9 +17,9 @@ A compact Android TV home screen built with native Java views: a quiet backdrop,
 
 ### Opening an app
 
-Recorded on an onn. 4K Streaming Box; the GIF includes opening YouTube and returning home.
+Recorded on an onn. 4K Streaming Box; the GIF shows Netflix opening from the dock.
 
-![App opening and return](docs/images/opening.gif)
+![Netflix opening](docs/images/opening.gif)
 
 ### Personalization and recent apps
 
@@ -31,7 +31,7 @@ Recorded on an onn. 4K Streaming Box; the GIF includes opening YouTube and retur
 
 ### Recent apps and closing animations
 
-Open Recents with double Home, then press Up to dismiss the selected app. The capture shows the card moving upward, the empty state, and the return to home.
+Open Recents with double Home, then press Up to dismiss the selected Netflix app. The capture shows the Netflix card moving upward and the empty state.
 
 ![Recent apps entrance and app dismissal](docs/images/recents-dismiss.gif)
 
