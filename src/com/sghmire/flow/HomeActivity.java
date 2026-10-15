@@ -16,6 +16,7 @@ import android.database.ContentObserver;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Outline;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -33,9 +34,8 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
-import android.view.animation.AccelerateDecelerateInterpolator;
-import android.view.animation.AccelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
+import android.view.animation.PathInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -75,10 +75,13 @@ public class HomeActivity extends Activity {
     private FrameLayout content;
     /** Backdrop + content; the part of the screen the pinhole opens and closes over. */
     private FrameLayout stage;
-    /** Black cover with a pinhole that closes onto a tile on launch and opens from it on return. */
-    private IrisView iris;
+    /** Copy of the tile being opened or returned to; grows to full screen and back. */
+    private HeroView hero;
+    private Drawable lastArt;
+    private boolean lastFill;
+    private float lastRadius;
+    private int lastBg;
     private boolean launching;
-    private int[] lastCenter;
     private boolean revealPending;
     private TextView cardsLabel;
     private RowScrollView cardsScroll, dockScroll;
@@ -308,9 +311,8 @@ public class HomeActivity extends Activity {
         dlp.bottomMargin = px(34);
         content.addView(dock, dlp);
 
-        iris = new IrisView(this);
-        iris.setVisibility(View.INVISIBLE);
-        root.addView(iris, match());
+        hero = new HeroView(this);
+        root.addView(hero, match());
         return root;
     }
 
@@ -436,7 +438,7 @@ public class HomeActivity extends Activity {
         tile.setOnClickListener(v -> {
             Intent i = getPackageManager().getLeanbackLaunchIntentForPackage(app.pkg);
             if (i == null) i = new Intent(Intent.ACTION_MAIN).setComponent(app.component);
-            launch(v, i);
+            launch(v, i, app.banner != null ? app.banner : app.icon, false, radius);
         });
         return tile;
     }
@@ -559,7 +561,7 @@ public class HomeActivity extends Activity {
                 }
             }
             if (i == null && item.pkg != null) i = getPackageManager().getLeanbackLaunchIntentForPackage(item.pkg);
-            if (i != null) launch(v, i);
+            if (i != null) launch(v, i, iv.getDrawable(), true, radius);
         });
         return card;
     }
@@ -578,43 +580,67 @@ public class HomeActivity extends Activity {
         return designed;
     }
 
-    private int[] centerOf(View v) {
+    /** On-screen bounds of a view, including its current focus zoom. */
+    private RectF boundsOf(View v) {
         int[] loc = new int[2];
         v.getLocationInWindow(loc);
-        return new int[] {loc[0] + v.getWidth() / 2, loc[1] + v.getHeight() / 2};
+        return new RectF(loc[0], loc[1], loc[0] + v.getWidth() * v.getScaleX(), loc[1] + v.getHeight() * v.getScaleY());
+    }
+
+    private static final PathInterpolator EXPAND = new PathInterpolator(0.25f, 0f, 0f, 1f);
+    private static final PathInterpolator COLLAPSE = new PathInterpolator(0.3f, 0f, 0.1f, 1f);
+
+    private void launch(View from, Intent intent) {
+        launch(from, intent, null, false, 0f);
     }
 
     /**
-     * Pinhole open: an iris closes in on the clicked tile until the screen is black, then
-     * the app fades up out of that black. Only one screen is ever visible, so there is no
-     * double image while the app window takes over.
+     * Opening: the tile itself grows from its spot to fill the screen (its banner floating
+     * up on its own brand color, or its picture for Continue Watching), then the app fades
+     * in over it. Nothing else is on screen at the hand-over, so there is no double image.
      */
-    private void launch(View from, Intent intent) {
+    private void launch(View from, Intent intent, Drawable art, boolean fill, float cornerRadius) {
         if (launching) return;
         launching = true;
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         lastLaunched = from;
-        int[] c = centerOf(from);
-        lastCenter = c;
-        iris.setCenter(c[0], c[1]);
-        iris.setRadius(iris.openRadius());
-        iris.setVisibility(View.VISIBLE);
-        ValueAnimator close = ValueAnimator.ofFloat(iris.openRadius(), 0f);
-        close.setDuration(ms(560));
-        close.setInterpolator(new DecelerateInterpolator(1.4f));
-        close.addUpdateListener(an -> iris.setRadius((float) an.getAnimatedValue()));
-        close.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animation) {
+        lastArt = art;
+        lastFill = fill;
+        lastRadius = cornerRadius;
+        int bg = fill ? Color.BLACK : HeroView.edgeColor(art, 0xFF1B2538);
+        lastBg = bg;
+        RectF r = boundsOf(from);
+        hero.prepare(art, bg, fill, r, cornerRadius * from.getScaleX());
+        hero.setVisibility(View.VISIBLE);
+        from.setAlpha(0f);
+
+        final boolean[] started = {false};
+        ValueAnimator grow = ValueAnimator.ofFloat(0f, 1f);
+        grow.setDuration(ms(700));
+        grow.setInterpolator(EXPAND);
+        grow.addUpdateListener(an -> {
+            hero.setProgress((float) an.getAnimatedValue());
+            // Hand over to the app near the end, so its window is ready as the tile lands.
+            if (!started[0] && an.getAnimatedFraction() >= 0.8f) {
+                started[0] = true;
                 startApp(intent);
             }
         });
-        // The home screen leans in toward the tile as the iris closes on it.
-        stage.setPivotX(c[0]);
-        stage.setPivotY(c[1]);
-        stage.animate().scaleX(1.06f).scaleY(1.06f).setDuration(ms(560))
-                .setInterpolator(new AccelerateInterpolator(1.2f)).withLayer().start();
-        close.start();
+        grow.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (!started[0]) {
+                    started[0] = true;
+                    startApp(intent);
+                }
+            }
+        });
+        // Home recedes slightly behind the growing tile.
+        stage.setPivotX(r.centerX());
+        stage.setPivotY(r.centerY());
+        stage.animate().scaleX(0.94f).scaleY(0.94f).alpha(0.4f).setDuration(ms(700))
+                .setInterpolator(EXPAND).withLayer().start();
+        grow.start();
     }
 
     private void startApp(Intent intent) {
@@ -634,38 +660,43 @@ public class HomeActivity extends Activity {
         stage.animate().cancel();
         stage.setScaleX(1f);
         stage.setScaleY(1f);
-        stage.setVisibility(View.VISIBLE);
-        iris.setVisibility(View.INVISIBLE);
+        stage.setAlpha(1f);
+        stage.setLayerType(View.LAYER_TYPE_NONE, null);
+        hero.clear();
+        if (lastLaunched != null) lastLaunched.setAlpha(1f);
     }
 
     /**
-     * Called while the launcher is hidden: home starts the way back fully dark, so the very
-     * first visible frame is already part of the animation.
+     * Called while the launcher is hidden: home waits behind the full-screen tile, so as the
+     * app fades away it fades into its own tile, which then shrinks back into place.
      */
     private void stageReturnAnimation() {
         launching = false;
         revealPending = false;
         main.removeCallbacks(revealNow);
         stage.animate().cancel();
-        stage.setScaleX(1f);
-        stage.setScaleY(1f);
-        stage.setVisibility(View.VISIBLE);
-        // Black cover over a fully drawn home: images and tiles get uploaded to the GPU while
-        // the app is still fading out, so the reveal's first frames don't stall.
-        iris.setRadius(0f);
-        iris.setVisibility(View.VISIBLE);
         View tile = lastLaunched;
-        if (tile != null && tile.isAttachedToWindow()) {
-            lastCenter = centerOf(tile);
-            tile.requestFocus();
+        if (tile == null || !tile.isAttachedToWindow()) {
+            resetStage();
+            returnStaged = true;
+            return;
         }
+        tile.requestFocus();
+        // Render home into a GPU layer now, while it's hidden behind the full-screen tile, so
+        // the shrink-back starts on a ready texture instead of stalling to build one.
+        stage.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        stage.setScaleX(0.94f);
+        stage.setScaleY(0.94f);
+        stage.setAlpha(0.4f);
+        tile.setAlpha(0f);
+        hero.setVisibility(View.VISIBLE);
+        hero.setProgress(1f);
         returnStaged = true;
     }
 
     /**
-     * Pinhole close: the system fades the app out over a dark screen, then home opens back up
-     * out of the tile the app was launched from. Waiting for the fade (or ~0.45 s, whichever
-     * comes first) keeps the closing app and home from showing on top of each other.
+     * Closing: wait for the system to fade the app out (or ~0.45 s), then the full-screen
+     * tile shrinks back into its spot while home comes forward again.
      */
     private void playReturnAnimation() {
         if (!returnStaged) stageReturnAnimation();
@@ -680,29 +711,38 @@ public class HomeActivity extends Activity {
     private void revealHome() {
         if (!revealPending) return;
         revealPending = false;
-        int[] c = lastCenter != null ? lastCenter : new int[] {stage.getWidth() / 2, stage.getHeight() / 2};
-        if (!stage.isAttachedToWindow() || stage.getWidth() == 0) {
-            iris.setVisibility(View.INVISIBLE);
+        View tile = lastLaunched;
+        if (tile == null || !tile.isAttachedToWindow() || hero.getVisibility() != View.VISIBLE) {
+            resetStage();
             return;
         }
-        iris.setCenter(c[0], c[1]);
-        ValueAnimator open = ValueAnimator.ofFloat(0f, iris.openRadius());
-        open.setDuration(ms(640));
-        open.setInterpolator(new AccelerateDecelerateInterpolator());
-        open.addUpdateListener(an -> iris.setRadius((float) an.getAnimatedValue()));
-        open.addListener(new AnimatorListenerAdapter() {
+        // The tile may sit somewhere new (rows refresh); re-aim the hero at where it is now,
+        // using its focused size since it will be focused when it lands.
+        float zoom = tile.isFocused() ? 1.16f : 1f;
+        int[] loc = new int[2];
+        tile.getLocationInWindow(loc);
+        float sx = tile.getScaleX();
+        float w = tile.getWidth() * zoom, h = tile.getHeight() * zoom;
+        float left = loc[0] - tile.getWidth() * (zoom - sx) / 2f, top = loc[1] - tile.getHeight() * (zoom - sx) / 2f;
+        hero.prepare(lastArt, lastBg, lastFill, new RectF(left, top, left + w, top + h), lastRadius * zoom);
+        hero.setProgress(1f);
+
+        ValueAnimator shrink = ValueAnimator.ofFloat(1f, 0f);
+        shrink.setDuration(ms(650));
+        shrink.setInterpolator(COLLAPSE);
+        shrink.addUpdateListener(an -> hero.setProgress((float) an.getAnimatedValue()));
+        shrink.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
-                iris.setVisibility(View.INVISIBLE);
+                tile.setAlpha(1f);
+                hero.clear();
+                lastArt = null;
+                stage.setLayerType(View.LAYER_TYPE_NONE, null);
             }
         });
-        open.start();
-        stage.setPivotX(c[0]);
-        stage.setPivotY(c[1]);
-        stage.setScaleX(1.06f);
-        stage.setScaleY(1.06f);
-        stage.animate().scaleX(1f).scaleY(1f).setDuration(ms(700))
-                .setInterpolator(new DecelerateInterpolator(1.6f)).withLayer().start();
+        shrink.start();
+        stage.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(ms(650))
+                .setInterpolator(COLLAPSE).start();
     }
 
     @Override
