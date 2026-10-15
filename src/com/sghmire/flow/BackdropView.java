@@ -10,8 +10,8 @@ import android.graphics.Shader;
 import android.view.View;
 
 /**
- * Matte dark backdrop: smooth near-black charcoal with a soft diagonal sheen from the top-left,
- * a gentle light pool above the dock and darker edges. Gradients are dithered, so no banding.
+ * Matte charcoal backdrop with a broad, subtle cool sheen and softly darkened edges.
+ * Gradients are dithered to reduce banding.
  */
 public class BackdropView extends View {
     /** Gradients are rasterised once; per-frame GPU work is then a single texture blit. */
@@ -37,29 +37,19 @@ public class BackdropView extends View {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
 
         p.setShader(new LinearGradient(0, 0, 0, h,
-                new int[] {0xFF17181B, 0xFF111214, 0xFF0C0D0E},
+                new int[] {0xFF1B1E24, 0xFF14171C, 0xFF0D1014},
                 new float[] {0f, 0.55f, 1f}, Shader.TileMode.CLAMP));
         c.drawRect(0, 0, w, h, p);
 
         // Soft sheen falling in from the top-left.
-        p.setShader(new LinearGradient(0, 0, w * 0.55f, h * 0.9f,
-                new int[] {0x16FFFFFF, 0x06FFFFFF, 0x00FFFFFF},
+        p.setShader(new LinearGradient(0, 0, w * 0.9f, h,
+                new int[] {0x0CBCD0E8, 0x04BCD0E8, 0x00BCD0E8},
                 new float[] {0f, 0.45f, 1f}, Shader.TileMode.CLAMP));
         c.drawRect(0, 0, w, h, p);
 
-        // Faint light pool above the dock.
-        float cx = w / 2f, cy = h * 0.66f;
-        c.save();
-        c.scale(1f, 0.3f, cx, cy);
-        p.setShader(new RadialGradient(cx, cy, w * 0.34f,
-                new int[] {0x22FFFFFF, 0x0AFFFFFF, 0x00FFFFFF},
-                new float[] {0f, 0.5f, 1f}, Shader.TileMode.CLAMP));
-        c.drawCircle(cx, cy, w * 0.34f, p);
-        c.restore();
-
         // Darker edges.
         p.setShader(new RadialGradient(w / 2f, h / 2f, (float) Math.hypot(w, h) * 0.6f,
-                new int[] {0x00000000, 0x00000000, 0x73000000},
+                new int[] {0x00000000, 0x00000000, 0x45000000},
                 new float[] {0f, 0.55f, 1f}, Shader.TileMode.CLAMP));
         c.drawRect(0, 0, w, h, p);
     }

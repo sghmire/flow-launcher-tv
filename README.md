@@ -1,8 +1,10 @@
 # Flow Launcher
 
-A compact Android TV home screen built with native Java views: a quiet backdrop, a scrolling app dock, contextual recommendations, and animated app transitions.
+A compact Android TV home screen built with native Java views: a smooth blue-charcoal backdrop, a scrolling app dock, contextual recommendations, and animated app transitions.
 
 ![Flow home screen](docs/images/home.png)
+
+[View the background without content cards](docs/images/background.png)
 
 ## Features
 
@@ -17,7 +19,7 @@ A compact Android TV home screen built with native Java views: a quiet backdrop,
 
 ### Opening an app
 
-Recorded on an onn. 4K Streaming Box; the GIF shows Netflix opening from the dock.
+Recorded on an onn. 4K Streaming Box; the GIF shows Netflix opening from the dock, remaining in the app for about fourteen seconds, and returning home. Netflix’s home/profile screen was confirmed on the TV, but appears black in ADB recordings.
 
 ![Netflix opening](docs/images/opening.gif)
 
@@ -140,7 +142,7 @@ On **2026-10-15**, an **onn. 4K Streaming Box running Android 14**, with a **192
 | Janky frames | 8 / 307 (2.61%) |
 | Frame time p50 / p90 / p99 | 12 / 18 / 36 ms |
 
-This is one warm navigation sample, not a controlled benchmark or an improvement claim. APK size is separate from runtime memory. Captures and measurements include the existing local source edits; the documentation commit does not include those edits. See [measurement provenance and raw results](docs/measurements/README.md).
+These measurements predate the background refresh. This is one warm navigation sample, not a controlled benchmark or an improvement claim. APK size is separate from runtime memory. Captures and measurements include the existing local source edits; the documentation commit does not include those edits. See [measurement provenance and raw results](docs/measurements/README.md).
 
 ## Artwork
 

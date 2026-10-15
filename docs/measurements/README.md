@@ -1,6 +1,6 @@
 # Capture and measurement notes — 2026-10-15
 
-Device: onn. 4K Streaming Box (YOC), Android 14. Physical display size reported by Android: 3840 × 2160; configured UI override: 1920 × 1080. Screenshots are direct 1920 × 1080 ADB captures. The Netflix animation GIFs were recorded at 1280 × 720 and exported at 960 × 540, 25 fps. Opening and return clips are trimmed from the same recording to focus on launcher transitions; Netflix itself appeared black in the recording. GIF frame rate is an export setting, not a measurement of launcher performance.
+Device: onn. 4K Streaming Box (YOC), Android 14. Physical display size reported by Android: 3840 × 2160; configured UI override: 1920 × 1080. Screenshots are direct 1920 × 1080 ADB captures. The Netflix animation GIFs were recorded at 1280 × 720 and exported at 960 × 540 (opening: 20 fps; return and Recents: 25 fps). Opening includes about fourteen seconds in Netflix before Home; return is an excerpt from that recording; Netflix itself appeared black in the recording. GIF frame rate is an export setting, not a measurement of launcher performance.
 
 ## Provenance
 
@@ -25,3 +25,9 @@ No repeated trials, cold-start timings, battery measurements, before/after compa
 All four README screenshots and all three GIFs were recaptured using Netflix on the same TV on 2026-10-15. `opening.gif` shows the Netflix tile expanding; `app-return.gif` shows Home returning from Netflix to the launcher. `recents-dismiss.gif` shows double-Home opening Recents, Up dismissing Netflix, and the empty state. The previous YouTube recent card was dismissed before recording. Other installed apps remain visible in the dock.
 
 These are visual demonstrations, not additional performance samples. The numerical results above retain their original measurement conditions and were not relabeled as Netflix benchmarks.
+
+## Background refresh
+
+Removed the oval light pool above the dock, softened the edge vignette, and introduced a subtle blue-charcoal gradient in `BackdropView.java`. Built successfully and installed on the TV; all README captures were refreshed. Current APK remains 62,295 bytes, SHA-256 `98e57d1fb656be4eaf5940b60af4cdf0aa1f1f938404790efae4bc4b2d5adc0e`. The older numerical measurements and APK hashes above describe the pre-refresh build.
+
+During the longer Netflix sample, Android reported `com.netflix.ninja/.MainActivity` as the resumed activity after fourteen seconds. The user confirmed the Netflix home/profile screen was visible on the TV. ADB screenshots returned empty files and screenrecord rendered the app surface black; the GIF cannot visibly demonstrate that landing screen. A camera recording is needed to show it. Existing unrelated source edits remain outside this commit.
