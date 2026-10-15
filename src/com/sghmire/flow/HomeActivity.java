@@ -74,6 +74,9 @@ public class HomeActivity extends Activity {
 
     private static final DecelerateInterpolator EASE_OUT = new DecelerateInterpolator(2f);
 
+    private static final int DOCK_PER_VIEW = 6;
+    private static final int DOCK_TILE_W = 122;
+
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private ImageLoader images;
@@ -337,7 +340,6 @@ public class HomeActivity extends Activity {
         dockRow.setGravity(Gravity.CENTER_VERTICAL);
         dockRow.setClipChildren(false);
         dockRow.setClipToPadding(false);
-        dockRow.setPadding(px(20), 0, px(20), 0);
         dockScroll.addView(dockRow, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
         dock.addView(dockScroll, new FrameLayout.LayoutParams(
@@ -446,20 +448,27 @@ public class HomeActivity extends Activity {
         }
         dockRow.removeAllViews();
         View toFocus = null;
+        List<View> tiles = new ArrayList<>();
         for (AppEntry app : apps) {
             View tile = appTile(app);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(px(122), px(72));
-            lp.leftMargin = px(9);
-            lp.rightMargin = px(9);
-            dockRow.addView(tile, lp);
+            tiles.add(tile);
             if (app.pkg.equals(focusedPkg)) toFocus = tile;
         }
-        if (!hidden.isEmpty()) {
-            View tile = hiddenAppsTile(hidden);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(px(122), px(72));
-            lp.leftMargin = px(9);
-            lp.rightMargin = px(9);
-            dockRow.addView(tile, lp);
+        if (!hidden.isEmpty()) tiles.add(hiddenAppsTile(hidden));
+
+        // Exactly six tiles fit across the dock; fewer than six sit centered.
+        int viewW = getResources().getDisplayMetrics().widthPixels - px(60);
+        int tileW = px(DOCK_TILE_W), side = px(26);
+        int gap = (viewW - 2 * side - DOCK_PER_VIEW * tileW) / (DOCK_PER_VIEW - 1);
+        int n = tiles.size();
+        int used = n * tileW + Math.max(0, n - 1) * gap;
+        int left = n < DOCK_PER_VIEW ? (viewW - used) / 2 : side;
+        dockRow.setPadding(left, 0, side, 0);
+        dockScroll.setPaging(tileW + gap, DOCK_PER_VIEW);
+        for (int i = 0; i < n; i++) {
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(tileW, px(72));
+            lp.rightMargin = i < n - 1 ? gap : 0;
+            dockRow.addView(tiles.get(i), lp);
         }
         if (toFocus != null) toFocus.requestFocus();
         else if (dockRow.getChildCount() > 0 && (firstAppsLoad || getCurrentFocus() == null)) {
@@ -481,7 +490,7 @@ public class HomeActivity extends Activity {
             iv.setImageDrawable(app.banner);
             tile.addView(iv, match());
         } else {
-            tile.setBackground(new ColorDrawable(0xFF27324A));
+            tile.setBackground(new ColorDrawable(0xFF2A2C30));
             LinearLayout col = new LinearLayout(this);
             col.setOrientation(LinearLayout.VERTICAL);
             col.setGravity(Gravity.CENTER);
@@ -586,7 +595,7 @@ public class HomeActivity extends Activity {
         float radius = px(14);
         FrameLayout card = new FrameLayout(this);
         card.setFocusable(true);
-        card.setBackground(new ColorDrawable(0xFF1B2538));
+        card.setBackground(new ColorDrawable(0xFF1E2023));
         card.setContentDescription(item.title);
         roundCorners(card, radius);
 
@@ -675,7 +684,7 @@ public class HomeActivity extends Activity {
         lastArt = art;
         lastFill = fill;
         lastRadius = cornerRadius;
-        int bg = fill ? Color.BLACK : HeroView.edgeColor(art, 0xFF1B2538);
+        int bg = fill ? Color.BLACK : HeroView.edgeColor(art, 0xFF1E2023);
         lastBg = bg;
         RectF r = boundsOf(from);
         hero.prepare(art, bg, fill, r, cornerRadius * from.getScaleX());
@@ -928,7 +937,7 @@ public class HomeActivity extends Activity {
     }
 
     int brandColorFor(String pkg) {
-        return HeroView.edgeColor(bannerFor(pkg), 0xFF1B2538);
+        return HeroView.edgeColor(bannerFor(pkg), 0xFF1E2023);
     }
 
     // ---------------------------------------------------------------- Hiding apps
@@ -965,17 +974,34 @@ public class HomeActivity extends Activity {
         float radius = px(12);
         FrameLayout tile = new FrameLayout(this);
         tile.setFocusable(true);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(radius);
-        bg.setColor(0x1FFFFFFF);
-        bg.setStroke(Math.max(1, px(1)), 0x33FFFFFF);
+        roundCorners(tile, radius);
+        // Styled like an app banner so it sits naturally in the dock.
+        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[] {0xFF3B3E45, 0xFF24262B});
         tile.setBackground(bg);
-        TextView t = new TextView(this);
-        t.setText("Hidden apps\n" + hidden.size());
-        t.setGravity(Gravity.CENTER);
-        t.setTextColor(0xCCFFFFFF);
-        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        tile.addView(t, match());
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.HORIZONTAL);
+        content.setGravity(Gravity.CENTER);
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(R.drawable.ic_hidden);
+        icon.setAlpha(0.9f);
+        content.addView(icon, new LinearLayout.LayoutParams(px(24), px(24)));
+        LinearLayout text = new LinearLayout(this);
+        text.setOrientation(LinearLayout.VERTICAL);
+        text.setPadding(px(9), 0, 0, 0);
+        TextView title = new TextView(this);
+        title.setText("Hidden");
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        text.addView(title);
+        TextView count = new TextView(this);
+        count.setText(hidden.size() == 1 ? "1 app" : hidden.size() + " apps");
+        count.setTextColor(0x99FFFFFF);
+        count.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        text.addView(count);
+        content.addView(text);
+        tile.addView(content, match());
         attachFocusEffect(tile, 1.16f);
         tile.setOnClickListener(v -> {
             CharSequence[] names = new CharSequence[hidden.size()];

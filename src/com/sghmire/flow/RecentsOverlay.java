@@ -34,7 +34,7 @@ public class RecentsOverlay extends FrameLayout {
         }
     }
 
-    static final int BACKDROP = 0xF2060A14;
+    static final int BACKDROP = 0xF20C0D0F;
 
     private static final DecelerateInterpolator EASE = new DecelerateInterpolator(2f);
 

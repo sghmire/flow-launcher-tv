@@ -20,6 +20,8 @@ public class RowScrollView extends HorizontalScrollView {
     private int target;
     private boolean running;
     private long lastFrameNanos;
+    /** When set, the row scrolls in whole-tile steps so exactly {@code perView} tiles show. */
+    private int step, perView;
 
     private final Runnable frame = this::step;
 
@@ -54,6 +56,14 @@ public class RowScrollView extends HorizontalScrollView {
         int t;
         if (anchorStart) {
             t = left - pad;
+        } else if (step > 0 && content instanceof android.view.ViewGroup) {
+            int index = ((android.view.ViewGroup) content).indexOfChild(focused);
+            int count = ((android.view.ViewGroup) content).getChildCount();
+            int first = Math.round((running ? target : getScrollX()) / (float) step);
+            if (index < first) first = index;
+            if (index > first + perView - 1) first = index - perView + 1;
+            first = Math.max(0, Math.min(Math.max(0, count - perView), first));
+            t = first * step;
         } else {
             // Measure against where the spring is heading, not where it is mid-flight.
             int x = running ? target : getScrollX();
@@ -94,6 +104,11 @@ public class RowScrollView extends HorizontalScrollView {
         }
         scrollTo(Math.round(pos), 0);
         postOnAnimation(frame);
+    }
+
+    public void setPaging(int step, int perView) {
+        this.step = step;
+        this.perView = perView;
     }
 
     public void reset() {
