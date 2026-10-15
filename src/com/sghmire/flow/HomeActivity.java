@@ -1,6 +1,10 @@
 package com.sghmire.flow;
 
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.AlertDialog;
+import android.app.usage.UsageEvents;
+import android.app.usage.UsageStatsManager;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
@@ -10,6 +14,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.database.ContentObserver;
@@ -26,7 +31,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.Settings;
+import android.text.format.DateUtils;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -77,6 +84,14 @@ public class HomeActivity extends Activity {
     private FrameLayout stage;
     /** Copy of the tile being opened or returned to; grows to full screen and back. */
     private HeroView hero;
+    private RecentsOverlay recents;
+    /** Where the return animation should land when an app was opened from Recents. */
+    private View returnTarget;
+    private View focusBeforeRecents;
+    private long lastHomePress;
+    private final java.util.Map<String, AppEntry> appsByPkg = new java.util.HashMap<>();
+    private SharedPreferences prefs;
+    private String pendingFocusPkg;
     private Drawable lastArt;
     private boolean lastFill;
     private float lastRadius;
@@ -113,6 +128,7 @@ public class HomeActivity extends Activity {
         super.onCreate(savedInstanceState);
         dp = getResources().getDisplayMetrics().density;
         images = new ImageLoader(getContentResolver());
+        prefs = getSharedPreferences("flow", MODE_PRIVATE);
         setContentView(buildUi());
         // The backdrop covers the whole window, so skip painting the theme background under it.
         getWindow().setBackgroundDrawable(null);
@@ -189,6 +205,19 @@ public class HomeActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        if (intent.hasCategory(Intent.CATEGORY_HOME)) {
+            long now = SystemClock.uptimeMillis();
+            boolean doublePress = now - lastHomePress < 550;
+            lastHomePress = doublePress ? 0 : now;
+            if (doublePress && !recents.isShowing()) {
+                showRecents();
+                return;
+            }
+            if (recents.isShowing()) {
+                recents.hide(true);
+                return;
+            }
+        }
         // Home pressed while already home: glide back to the start of the dock.
         if (hasWindowFocus() && !returningFromApp && dockRow.getChildCount() > 0) {
             cardsScroll.reset();
@@ -199,12 +228,13 @@ public class HomeActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        // A home screen has nowhere to go back to.
+        // A home screen has nowhere to go back to; Back only closes the Recents screen.
+        if (recents.isShowing()) recents.hide(true);
     }
 
     // ---------------------------------------------------------------- UI
 
-    private int px(float v) {
+    int px(float v) {
         return Math.round(v * dp);
     }
 
@@ -275,6 +305,7 @@ public class HomeActivity extends Activity {
         cardsRow = new LinearLayout(this);
         cardsRow.setOrientation(LinearLayout.HORIZONTAL);
         cardsRow.setClipChildren(false);
+        cardsRow.setClipToPadding(false);
         cardsRow.setPadding(px(45), px(16), px(45), px(16));
         cardsScroll.addView(cardsRow);
         upper.addView(cardsScroll, new LinearLayout.LayoutParams(
@@ -299,6 +330,7 @@ public class HomeActivity extends Activity {
         dockRow.setOrientation(LinearLayout.HORIZONTAL);
         dockRow.setGravity(Gravity.CENTER_VERTICAL);
         dockRow.setClipChildren(false);
+        dockRow.setClipToPadding(false);
         dockRow.setPadding(px(20), 0, px(20), 0);
         dockScroll.addView(dockRow, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -311,6 +343,8 @@ public class HomeActivity extends Activity {
         dlp.bottomMargin = px(34);
         content.addView(dock, dlp);
 
+        recents = new RecentsOverlay(this);
+        root.addView(recents, match());
         hero = new HeroView(this);
         root.addView(hero, match());
         return root;
@@ -321,7 +355,7 @@ public class HomeActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
     }
 
-    private void roundCorners(View v, float radius) {
+    void roundCorners(View v, float radius) {
         v.setOutlineProvider(new ViewOutlineProvider() {
             @Override
             public void getOutline(View view, Outline outline) {
@@ -380,14 +414,26 @@ public class HomeActivity extends Activity {
             Collections.sort(rest, (a, b) -> a.label.compareToIgnoreCase(b.label));
             List<AppEntry> all = new ArrayList<>(favorites);
             all.addAll(rest);
-            main.post(() -> showApps(all));
+            main.post(() -> {
+                appsByPkg.clear();
+                for (AppEntry e : all) appsByPkg.put(e.pkg, e);
+                Set<String> hidden = hiddenApps();
+                List<AppEntry> visible = new ArrayList<>();
+                List<AppEntry> hiddenList = new ArrayList<>();
+                for (AppEntry e : all) (hidden.contains(e.pkg) ? hiddenList : visible).add(e);
+                showApps(visible, hiddenList);
+            });
         });
     }
 
-    private void showApps(List<AppEntry> apps) {
+    private void showApps(List<AppEntry> apps, List<AppEntry> hidden) {
         String focusedPkg = null;
         View f = dockRow.findFocus();
         if (f != null && f.getTag() instanceof String) focusedPkg = (String) f.getTag();
+        if (pendingFocusPkg != null) {
+            focusedPkg = pendingFocusPkg;
+            pendingFocusPkg = null;
+        }
         dockRow.removeAllViews();
         View toFocus = null;
         for (AppEntry app : apps) {
@@ -397,6 +443,13 @@ public class HomeActivity extends Activity {
             lp.rightMargin = px(9);
             dockRow.addView(tile, lp);
             if (app.pkg.equals(focusedPkg)) toFocus = tile;
+        }
+        if (!hidden.isEmpty()) {
+            View tile = hiddenAppsTile(hidden);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(px(122), px(72));
+            lp.leftMargin = px(9);
+            lp.rightMargin = px(9);
+            dockRow.addView(tile, lp);
         }
         if (toFocus != null) toFocus.requestFocus();
         else if (dockRow.getChildCount() > 0 && (firstAppsLoad || getCurrentFocus() == null)) {
@@ -439,6 +492,10 @@ public class HomeActivity extends Activity {
             Intent i = getPackageManager().getLeanbackLaunchIntentForPackage(app.pkg);
             if (i == null) i = new Intent(Intent.ACTION_MAIN).setComponent(app.component);
             launch(v, i, app.banner != null ? app.banner : app.icon, false, radius);
+        });
+        tile.setOnLongClickListener(v -> {
+            showTileMenu(app);
+            return true;
         });
         return tile;
     }
@@ -603,7 +660,8 @@ public class HomeActivity extends Activity {
         if (launching) return;
         launching = true;
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        lastLaunched = from;
+        lastLaunched = returnTarget != null ? returnTarget : from;
+        returnTarget = null;
         lastArt = art;
         lastFill = fill;
         lastRadius = cornerRadius;
@@ -649,6 +707,7 @@ public class HomeActivity extends Activity {
             ActivityOptions opts = ActivityOptions.makeCustomAnimation(this, R.anim.app_enter, R.anim.home_hold);
             startActivity(intent, opts.toBundle());
             returningFromApp = true;
+            if (recents.isShowing()) recents.hide(false);
         } catch (Exception e) {
             Log.w(TAG, "launch failed: " + e);
             Toast.makeText(this, "Couldn't open that", Toast.LENGTH_SHORT).show();
@@ -745,15 +804,157 @@ public class HomeActivity extends Activity {
                 .setInterpolator(COLLAPSE).start();
     }
 
+    // ---------------------------------------------------------------- Recents
+
+    private void showRecents() {
+        focusBeforeRecents = getCurrentFocus();
+        stage.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        io.execute(() -> {
+            List<RecentsOverlay.Recent> list = recentApps();
+            main.post(() -> recents.show(list));
+        });
+    }
+
+    void onRecentsHidden() {
+        stage.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        View f = focusBeforeRecents;
+        focusBeforeRecents = null;
+        if (f != null && f.isAttachedToWindow()) f.requestFocus();
+        else if (dockRow.getChildCount() > 0) dockRow.getChildAt(0).requestFocus();
+    }
+
+    /** Apps used in the last three days, newest first, minus any swiped away since. */
+    private List<RecentsOverlay.Recent> recentApps() {
+        List<RecentsOverlay.Recent> out = new ArrayList<>();
+        UsageStatsManager usm = (UsageStatsManager) getSystemService(USAGE_STATS_SERVICE);
+        long now = System.currentTimeMillis();
+        java.util.Map<String, Long> last = new java.util.HashMap<>();
+        try {
+            UsageEvents events = usm.queryEvents(now - 3 * DateUtils.DAY_IN_MILLIS, now);
+            UsageEvents.Event e = new UsageEvents.Event();
+            while (events.hasNextEvent()) {
+                events.getNextEvent(e);
+                if (e.getEventType() == UsageEvents.Event.ACTIVITY_RESUMED) last.put(e.getPackageName(), e.getTimeStamp());
+            }
+        } catch (Exception ex) {
+            Log.w(TAG, "usage stats: " + ex);
+        }
+        for (java.util.Map.Entry<String, Long> en : last.entrySet()) {
+            String pkg = en.getKey();
+            if (pkg.equals(getPackageName()) || !appsByPkg.containsKey(pkg)) continue;
+            if (en.getValue() <= prefs.getLong("dismissed:" + pkg, 0)) continue;
+            out.add(new RecentsOverlay.Recent(pkg, en.getValue()));
+        }
+        Collections.sort(out, (a, b) -> Long.compare(b.lastUsed, a.lastUsed));
+        if (out.size() > 12) out.subList(12, out.size()).clear();
+        return out;
+    }
+
+    void openRecent(View art, String pkg, float radius) {
+        Intent i = getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
+        if (i == null) return;
+        // Coming back from this app should land on its dock tile, not on the Recents card.
+        View tile = null;
+        for (int k = 0; k < dockRow.getChildCount(); k++) {
+            if (pkg.equals(dockRow.getChildAt(k).getTag())) tile = dockRow.getChildAt(k);
+        }
+        returnTarget = tile;
+        launch(art, i, bannerFor(pkg), false, radius);
+    }
+
+    /** Closes an app's background processes and drops it from Recents until it's used again. */
+    void closeApp(String pkg) {
+        Log.i(TAG, "closing " + pkg);
+        prefs.edit().putLong("dismissed:" + pkg, System.currentTimeMillis()).apply();
+        try {
+            ((ActivityManager) getSystemService(ACTIVITY_SERVICE)).killBackgroundProcesses(pkg);
+        } catch (Exception e) {
+            Log.w(TAG, "close " + pkg + ": " + e);
+        }
+    }
+
+    Drawable bannerFor(String pkg) {
+        AppEntry e = appsByPkg.get(pkg);
+        return e == null ? null : e.banner != null ? e.banner : e.icon;
+    }
+
+    String labelFor(String pkg) {
+        AppEntry e = appsByPkg.get(pkg);
+        return e == null ? pkg : e.label;
+    }
+
+    int brandColorFor(String pkg) {
+        return HeroView.edgeColor(bannerFor(pkg), 0xFF1B2538);
+    }
+
+    // ---------------------------------------------------------------- Hiding apps
+
+    private Set<String> hiddenApps() {
+        return new HashSet<>(prefs.getStringSet("hidden", Collections.emptySet()));
+    }
+
+    private void setHidden(String pkg, boolean hide) {
+        Set<String> hidden = hiddenApps();
+        if (hide) hidden.add(pkg);
+        else hidden.remove(pkg);
+        prefs.edit().putStringSet("hidden", hidden).apply();
+        loadApps();
+    }
+
+    /** Hold OK (or press Menu) on an app tile. */
+    private void showTileMenu(AppEntry app) {
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(app.label)
+                .setItems(new CharSequence[] {"Hide from home", "App info"}, (d, which) -> {
+                    if (which == 0) {
+                        setHidden(app.pkg, true);
+                    } else {
+                        startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                .setData(android.net.Uri.fromParts("package", app.pkg, null))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    }
+                })
+                .show();
+    }
+
+    private View hiddenAppsTile(List<AppEntry> hidden) {
+        float radius = px(12);
+        FrameLayout tile = new FrameLayout(this);
+        tile.setFocusable(true);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(radius);
+        bg.setColor(0x1FFFFFFF);
+        bg.setStroke(Math.max(1, px(1)), 0x33FFFFFF);
+        tile.setBackground(bg);
+        TextView t = new TextView(this);
+        t.setText("Hidden apps\n" + hidden.size());
+        t.setGravity(Gravity.CENTER);
+        t.setTextColor(0xCCFFFFFF);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tile.addView(t, match());
+        attachFocusEffect(tile, 1.16f);
+        tile.setOnClickListener(v -> {
+            CharSequence[] names = new CharSequence[hidden.size()];
+            for (int i = 0; i < names.length; i++) names[i] = hidden.get(i).label;
+            new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle("Show on home again")
+                    .setItems(names, (d, which) -> {
+                        pendingFocusPkg = hidden.get(which).pkg; // land on the app that came back
+                        setHidden(pendingFocusPkg, false);
+                    })
+                    .show();
+        });
+        return tile;
+    }
+
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         // Menu on an app tile opens its system App info page.
         if (keyCode == KeyEvent.KEYCODE_MENU) {
             View f = getCurrentFocus();
-            if (f != null && f.getTag() instanceof String) {
-                Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                        .setData(android.net.Uri.fromParts("package", (String) f.getTag(), null));
-                launch(f, i);
+            if (f != null && f.getTag() instanceof String && appsByPkg.containsKey(f.getTag())
+                    && dockRow.indexOfChild(f) >= 0) {
+                showTileMenu(appsByPkg.get(f.getTag()));
                 return true;
             }
         }
