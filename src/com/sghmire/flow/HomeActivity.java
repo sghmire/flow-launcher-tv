@@ -684,7 +684,7 @@ public class HomeActivity extends Activity {
 
         final boolean[] started = {false};
         ValueAnimator grow = ValueAnimator.ofFloat(0f, 1f);
-        grow.setDuration(ms(700));
+        grow.setDuration(ms(520));
         grow.setInterpolator(EXPAND);
         grow.addUpdateListener(an -> {
             hero.setProgress((float) an.getAnimatedValue());
@@ -706,7 +706,7 @@ public class HomeActivity extends Activity {
         // Home recedes slightly behind the growing tile.
         stage.setPivotX(r.centerX());
         stage.setPivotY(r.centerY());
-        stage.animate().scaleX(0.94f).scaleY(0.94f).alpha(0.4f).setDuration(ms(700))
+        stage.animate().scaleX(0.94f).scaleY(0.94f).alpha(0.4f).setDuration(ms(520))
                 .setInterpolator(EXPAND).withLayer().start();
         grow.start();
     }
@@ -772,7 +772,7 @@ public class HomeActivity extends Activity {
     }
 
     /**
-     * Closing: wait for the system to fade the app out (or ~0.45 s), then the full-screen
+     * Closing: wait for the system to fade the app out (or ~0.34 s), then the full-screen
      * tile shrinks back into its spot while home comes forward again.
      */
     private void playReturnAnimation() {
@@ -780,7 +780,7 @@ public class HomeActivity extends Activity {
         returnStaged = false;
         revealPending = true;
         main.removeCallbacks(revealNow);
-        main.postDelayed(revealNow, 450);
+        main.postDelayed(revealNow, 340);
     }
 
     private final Runnable revealNow = this::revealHome;
@@ -810,7 +810,7 @@ public class HomeActivity extends Activity {
 
         ValueAnimator shrink = ValueAnimator.ofFloat(startAt, 0f);
         shrinkAnim = shrink;
-        shrink.setDuration(ms(600));
+        shrink.setDuration(ms(460));
         shrink.setInterpolator(COLLAPSE);
         shrink.addUpdateListener(an -> {
             hero.setProgress((float) an.getAnimatedValue());
@@ -826,9 +826,9 @@ public class HomeActivity extends Activity {
             }
         });
         shrink.start();
-        stage.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(ms(600))
+        stage.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(ms(460))
                 .setInterpolator(COLLAPSE).start();
-        returnCover.animate().alpha(0f).setDuration(ms(420)).setInterpolator(COLLAPSE)
+        returnCover.animate().alpha(0f).setDuration(ms(320)).setInterpolator(COLLAPSE)
                 .withEndAction(() -> returnCover.setVisibility(View.INVISIBLE)).start();
     }
 
