@@ -29,6 +29,16 @@ Recorded on an onn. 4K Streaming Box; the GIF includes opening YouTube and retur
 
 ![Recent apps](docs/images/recents.png)
 
+### Recent apps and closing animations
+
+Open Recents with double Home, then press Up to dismiss the selected app. The capture shows the card moving upward, the empty state, and the return to home.
+
+![Recent apps entrance and app dismissal](docs/images/recents-dismiss.gif)
+
+Press Home from an app to return to the dock with a collapsing tile animation. Returning home does not force-stop the app.
+
+![App-to-home return animation](docs/images/app-return.gif)
+
 ## Install
 
 Requires Android 9 / API 28 or later and a TV remote or D-pad. Build the APK using the instructions below. Enable developer options and ADB debugging on the TV, then connect using the address and port shown by the device. For wireless debugging that requires pairing:
