@@ -1,6 +1,8 @@
 package com.sghmire.flow;
 
 import android.app.Activity;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.app.ActivityOptions;
 import android.content.BroadcastReceiver;
@@ -12,8 +14,6 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.database.ContentObserver;
 import android.database.Cursor;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Outline;
 import android.graphics.Typeface;
@@ -33,6 +33,8 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.AccelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -71,6 +73,13 @@ public class HomeActivity extends Activity {
     private float dp;
 
     private FrameLayout content;
+    /** Backdrop + content; the part of the screen the pinhole opens and closes over. */
+    private FrameLayout stage;
+    /** Black cover with a pinhole that closes onto a tile on launch and opens from it on return. */
+    private IrisView iris;
+    private boolean launching;
+    private int[] lastCenter;
+    private boolean revealPending;
     private TextView cardsLabel;
     private RowScrollView cardsScroll, dockScroll;
     private LinearLayout cardsRow, dockRow;
@@ -144,6 +153,16 @@ public class HomeActivity extends Activity {
     }
 
     @Override
+    public void onEnterAnimationComplete() {
+        super.onEnterAnimationComplete();
+        // The system has finished fading the app away; open the pinhole now if still waiting.
+        if (revealPending) {
+            main.removeCallbacks(revealNow);
+            revealNow.run();
+        }
+    }
+
+    @Override
     protected void onStop() {
         super.onStop();
         if (returningFromApp) stageReturnAnimation();
@@ -188,11 +207,15 @@ public class HomeActivity extends Activity {
 
     private View buildUi() {
         FrameLayout root = new FrameLayout(this);
-        root.addView(new BackdropView(this), match());
+        root.setBackgroundColor(Color.BLACK);
+        stage = new FrameLayout(this);
+        stage.setClipChildren(false);
+        root.addView(stage, match());
+        stage.addView(new BackdropView(this), match());
 
         content = new FrameLayout(this);
         content.setClipChildren(false);
-        root.addView(content, match());
+        stage.addView(content, match());
 
         // Top-right: settings button and clock.
         LinearLayout top = new LinearLayout(this);
@@ -285,6 +308,9 @@ public class HomeActivity extends Activity {
         dlp.bottomMargin = px(34);
         content.addView(dock, dlp);
 
+        iris = new IrisView(this);
+        iris.setVisibility(View.INVISIBLE);
+        root.addView(iris, match());
         return root;
     }
 
@@ -552,70 +578,131 @@ public class HomeActivity extends Activity {
         return designed;
     }
 
-    private static Bitmap snapshot(View v) {
-        if (v.getWidth() == 0 || v.getHeight() == 0) return null;
-        try {
-            Bitmap b = Bitmap.createBitmap(v.getWidth(), v.getHeight(), Bitmap.Config.ARGB_8888);
-            v.draw(new Canvas(b));
-            return b;
-        } catch (Throwable t) {
-            return null;
-        }
+    private int[] centerOf(View v) {
+        int[] loc = new int[2];
+        v.getLocationInWindow(loc);
+        return new int[] {loc[0] + v.getWidth() / 2, loc[1] + v.getHeight() / 2};
     }
 
-    /** Opens the app growing out of the tile that was clicked. */
+    /**
+     * Pinhole open: an iris closes in on the clicked tile until the screen is black, then
+     * the app fades up out of that black. Only one screen is ever visible, so there is no
+     * double image while the app window takes over.
+     */
     private void launch(View from, Intent intent) {
+        if (launching) return;
+        launching = true;
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        // The tile's own picture grows to full screen and hands over to the app, instead of a
-        // blank (often black) window growing out of it.
-        ActivityOptions opts;
-        Bitmap thumb = snapshot(from);
-        if (thumb != null) {
-            opts = ActivityOptions.makeThumbnailScaleUpAnimation(from, thumb, 0, 0);
-        } else {
-            opts = ActivityOptions.makeScaleUpAnimation(from, 0, 0, from.getWidth(), from.getHeight());
-        }
+        lastLaunched = from;
+        int[] c = centerOf(from);
+        lastCenter = c;
+        iris.setCenter(c[0], c[1]);
+        iris.setRadius(iris.openRadius());
+        iris.setVisibility(View.VISIBLE);
+        ValueAnimator close = ValueAnimator.ofFloat(iris.openRadius(), 0f);
+        close.setDuration(ms(560));
+        close.setInterpolator(new DecelerateInterpolator(1.4f));
+        close.addUpdateListener(an -> iris.setRadius((float) an.getAnimatedValue()));
+        close.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                startApp(intent);
+            }
+        });
+        // The home screen leans in toward the tile as the iris closes on it.
+        stage.setPivotX(c[0]);
+        stage.setPivotY(c[1]);
+        stage.animate().scaleX(1.06f).scaleY(1.06f).setDuration(ms(560))
+                .setInterpolator(new AccelerateInterpolator(1.2f)).withLayer().start();
+        close.start();
+    }
+
+    private void startApp(Intent intent) {
+        launching = false;
         try {
+            ActivityOptions opts = ActivityOptions.makeCustomAnimation(this, R.anim.app_enter, R.anim.home_hold);
             startActivity(intent, opts.toBundle());
-            lastLaunched = from;
             returningFromApp = true;
         } catch (Exception e) {
             Log.w(TAG, "launch failed: " + e);
             Toast.makeText(this, "Couldn't open that", Toast.LENGTH_SHORT).show();
+            resetStage();
         }
+    }
+
+    private void resetStage() {
+        stage.animate().cancel();
+        stage.setScaleX(1f);
+        stage.setScaleY(1f);
+        stage.setVisibility(View.VISIBLE);
+        iris.setVisibility(View.INVISIBLE);
     }
 
     /**
-     * Called while the launcher is hidden: put the screen in its zoomed-in starting pose now,
-     * so the very first visible frame on the way home is already part of the animation.
+     * Called while the launcher is hidden: home starts the way back fully dark, so the very
+     * first visible frame is already part of the animation.
      */
     private void stageReturnAnimation() {
+        launching = false;
+        revealPending = false;
+        main.removeCallbacks(revealNow);
+        stage.animate().cancel();
+        stage.setScaleX(1f);
+        stage.setScaleY(1f);
+        stage.setVisibility(View.VISIBLE);
+        // Black cover over a fully drawn home: images and tiles get uploaded to the GPU while
+        // the app is still fading out, so the reveal's first frames don't stall.
+        iris.setRadius(0f);
+        iris.setVisibility(View.VISIBLE);
         View tile = lastLaunched;
-        content.animate().cancel();
         if (tile != null && tile.isAttachedToWindow()) {
-            int[] loc = new int[2];
-            tile.getLocationInWindow(loc);
-            content.setPivotX(loc[0] + tile.getWidth() / 2f);
-            content.setPivotY(loc[1] + tile.getHeight() / 2f);
-            content.setScaleX(1.18f);
-            content.setScaleY(1.18f);
+            lastCenter = centerOf(tile);
             tile.requestFocus();
         }
-        content.setAlpha(0f);
         returnStaged = true;
     }
 
-    /** Coming home: the screen settles back down into the tile the app was opened from. */
+    /**
+     * Pinhole close: the system fades the app out over a dark screen, then home opens back up
+     * out of the tile the app was launched from. Waiting for the fade (or ~0.45 s, whichever
+     * comes first) keeps the closing app and home from showing on top of each other.
+     */
     private void playReturnAnimation() {
         if (!returnStaged) stageReturnAnimation();
         returnStaged = false;
-        // withLayer() renders the screen once into a GPU texture and just scales that texture,
-        // instead of redrawing every tile and image on every frame of the animation.
-        content.animate().scaleX(1f).scaleY(1f).alpha(1f)
-                .setDuration(ms(640))
-                .setInterpolator(new DecelerateInterpolator(2.4f))
-                .withLayer()
-                .start();
+        revealPending = true;
+        main.removeCallbacks(revealNow);
+        main.postDelayed(revealNow, 450);
+    }
+
+    private final Runnable revealNow = this::revealHome;
+
+    private void revealHome() {
+        if (!revealPending) return;
+        revealPending = false;
+        int[] c = lastCenter != null ? lastCenter : new int[] {stage.getWidth() / 2, stage.getHeight() / 2};
+        if (!stage.isAttachedToWindow() || stage.getWidth() == 0) {
+            iris.setVisibility(View.INVISIBLE);
+            return;
+        }
+        iris.setCenter(c[0], c[1]);
+        ValueAnimator open = ValueAnimator.ofFloat(0f, iris.openRadius());
+        open.setDuration(ms(640));
+        open.setInterpolator(new AccelerateDecelerateInterpolator());
+        open.addUpdateListener(an -> iris.setRadius((float) an.getAnimatedValue()));
+        open.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                iris.setVisibility(View.INVISIBLE);
+            }
+        });
+        open.start();
+        stage.setPivotX(c[0]);
+        stage.setPivotY(c[1]);
+        stage.setScaleX(1.06f);
+        stage.setScaleY(1.06f);
+        stage.animate().scaleX(1f).scaleY(1f).setDuration(ms(700))
+                .setInterpolator(new DecelerateInterpolator(1.6f)).withLayer().start();
     }
 
     @Override
