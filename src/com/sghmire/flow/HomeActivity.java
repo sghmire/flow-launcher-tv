@@ -18,6 +18,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.database.ContentObserver;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Outline;
 import android.graphics.RectF;
@@ -160,6 +161,7 @@ public class HomeActivity extends Activity {
         registerReceiver(packageReceiver, pf);
 
         loadApps();
+        handleTileImage(getIntent());
         if (checkSelfPermission(PERM_TV_LISTINGS) == PackageManager.PERMISSION_GRANTED) {
             startWatchNext();
         } else {
@@ -224,6 +226,7 @@ public class HomeActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        if (handleTileImage(intent)) return;
         if (intent.hasCategory(Intent.CATEGORY_HOME)) {
             long now = SystemClock.uptimeMillis();
             boolean doublePress = now - lastHomePress < 550;
@@ -469,10 +472,29 @@ public class HomeActivity extends Activity {
             Collections.sort(all, (a, b) -> Integer.compare(orderIndex(order, a.pkg), orderIndex(order, b.pkg)));
             for (AppEntry e : all) {
                 int style = prefs.getInt("style:" + e.pkg, TileStyles.BANNER);
-                if (style != TileStyles.BANNER || e.origBanner == null) {
-                    e.banner = TileStyles.render(getResources(), style, e.origBanner, e.icon, e.label);
+                Drawable styled = null;
+                if (style == TileStyles.LOGO) {
+                    Logos.Logo logo = Logos.cached(this, e.pkg);
+                    if (logo != null) styled = TileStyles.renderLogo(getResources(), logo);
+                } else if (style == TileStyles.IMAGE) {
+                    Bitmap img = Logos.image(this, e.pkg, px(244), px(144));
+                    if (img != null) {
+                        styled = TileStyles.renderImage(getResources(), img);
+                        img.recycle();
+                    }
+                } else if (style != TileStyles.BANNER || e.origBanner == null) {
+                    styled = TileStyles.render(getResources(), style, e.origBanner, e.icon, e.label);
                 }
+                if (styled == null && e.origBanner == null) {
+                    styled = TileStyles.render(getResources(), TileStyles.ICON_AND_NAME, null, e.icon, e.label);
+                }
+                if (styled != null) e.banner = styled;
             }
+            // Look up brand logos once, in the background, so "Logo" is ready in Change icon.
+            List<AppEntry> toFetch = new ArrayList<>(all);
+            io.execute(() -> {
+                for (AppEntry e : toFetch) Logos.prefetch(this, e.pkg, e.label);
+            });
             main.post(() -> {
                 appsByPkg.clear();
                 for (AppEntry e : all) appsByPkg.put(e.pkg, e);
@@ -1161,6 +1183,40 @@ public class HomeActivity extends Activity {
         if (anchor != null && anchor.isAttachedToWindow()) anchor.requestFocus();
     }
 
+    /**
+     * Sets a tile's picture from a link: am start -n com.sghmire.flow/.HomeActivity
+     *   --es flow.tile_image "<package> <https url>"   ("<package> clear" removes it)
+     */
+    private boolean handleTileImage(Intent intent) {
+        String spec = intent.getStringExtra("flow.tile_image");
+        if (spec == null) return false;
+        intent.removeExtra("flow.tile_image");
+        String[] parts = spec.trim().split("\\s+", 2);
+        if (parts.length == 2 && parts[1].equals("clear")) {
+            String pkg = parts[0];
+            Logos.imageFile(this, pkg).delete();
+            if (prefs.getInt("style:" + pkg, TileStyles.BANNER) == TileStyles.IMAGE) {
+                prefs.edit().remove("style:" + pkg).apply();
+            }
+            loadApps();
+            return true;
+        }
+        if (parts.length != 2 || !parts[1].startsWith("https://")) return true;
+        String pkg = parts[0], url = parts[1];
+        io.execute(() -> {
+            boolean ok = Logos.downloadImage(this, pkg, url);
+            Log.i(TAG, "tile image for " + pkg + ": " + (ok ? "saved" : "failed"));
+            if (ok) {
+                prefs.edit().putInt("style:" + pkg, TileStyles.IMAGE).apply();
+                main.post(() -> {
+                    pendingFocusPkg = pkg;
+                    loadApps();
+                });
+            }
+        });
+        return true;
+    }
+
     // ---------------------------------------------------------------- Change icon
 
     private void showIconPicker(AppEntry app, View tile) {
@@ -1170,8 +1226,12 @@ public class HomeActivity extends Activity {
         row.setPadding(px(8), px(6), px(8), px(4));
         int current = prefs.getInt("style:" + app.pkg, TileStyles.BANNER);
         View currentView = null;
+        Logos.Logo logo = Logos.cached(this, app.pkg);
+        boolean hasImage = Logos.imageFile(this, app.pkg).exists();
         for (int style = 0; style < TileStyles.NAMES.length; style++) {
             if (style == TileStyles.BANNER && app.origBanner == null) continue;
+            if (style == TileStyles.LOGO && logo == null) continue;
+            if (style == TileStyles.IMAGE && !hasImage) continue;
             final int chosen = style;
             LinearLayout option = new LinearLayout(this);
             option.setOrientation(LinearLayout.VERTICAL);
@@ -1182,7 +1242,16 @@ public class HomeActivity extends Activity {
             roundCorners(preview, px(12));
             ImageView iv = new ImageView(this);
             iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            iv.setImageDrawable(TileStyles.render(getResources(), style, app.origBanner, app.icon, app.label));
+            Drawable look;
+            if (style == TileStyles.LOGO) {
+                look = TileStyles.renderLogo(getResources(), logo);
+            } else if (style == TileStyles.IMAGE) {
+                Bitmap img = Logos.image(this, app.pkg, px(244), px(144));
+                look = img != null ? TileStyles.renderImage(getResources(), img) : null;
+            } else {
+                look = TileStyles.render(getResources(), style, app.origBanner, app.icon, app.label);
+            }
+            iv.setImageDrawable(look);
             preview.addView(iv, match());
             option.addView(preview, new LinearLayout.LayoutParams(px(DOCK_TILE_W), px(72)));
             TextView name = new TextView(this);

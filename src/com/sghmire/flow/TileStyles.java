@@ -22,7 +22,11 @@ public final class TileStyles {
     public static final int ICON_AND_NAME = 1;
     public static final int ICON_ON_DARK = 2;
     public static final int NAME_ONLY = 3;
-    public static final String[] NAMES = {"Original", "Icon and name", "Icon on dark", "Name only"};
+    /** Brand logo from Simple Icons on the brand's color. */
+    public static final int LOGO = 4;
+    /** A picture the user supplied by link. */
+    public static final int IMAGE = 5;
+    public static final String[] NAMES = {"Original", "Icon and name", "Icon on dark", "Name only", "Logo", "Picture"};
 
     private TileStyles() {}
 
@@ -71,6 +75,57 @@ public final class TileStyles {
             }
         }
         return new BitmapDrawable(res, b);
+    }
+
+    /** Brand logo centered on its brand color. */
+    public static Drawable renderLogo(Resources res, Logos.Logo logo) {
+        float d = res.getDisplayMetrics().density;
+        int w = Math.round(244 * d), h = Math.round(144 * d);
+        Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(b);
+        int brand = logo.color;
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
+        p.setShader(new LinearGradient(0, 0, w, h, lighten(brand, 0.10f), darken(brand, 0.15f), Shader.TileMode.CLAMP));
+        c.drawRect(0, 0, w, h, p);
+        p.setShader(null);
+        // Bright brand colors (yellow, white) get a dark logo; everything else a white one.
+        p.setColor(luminance(brand) > 0.6f ? 0xFF111214 : Color.WHITE);
+        android.graphics.Path path = SvgPath.parse(logo.path);
+        android.graphics.RectF bounds = new android.graphics.RectF();
+        path.computeBounds(bounds, true);
+        float target = h * 0.46f;
+        float scale = Math.min(target / Math.max(1e-3f, bounds.height()), (w * 0.7f) / Math.max(1e-3f, bounds.width()));
+        c.translate(w / 2f, h / 2f);
+        c.scale(scale, scale);
+        c.translate(-bounds.centerX(), -bounds.centerY());
+        c.drawPath(path, p);
+        return new BitmapDrawable(res, b);
+    }
+
+    /** A user picture cropped to the tile's shape. */
+    public static Drawable renderImage(Resources res, Bitmap src) {
+        float d = res.getDisplayMetrics().density;
+        int w = Math.round(244 * d), h = Math.round(144 * d);
+        Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(b);
+        // Photos fill the tile; logos with transparency sit whole on a dark plate instead.
+        boolean logoLike = src.hasAlpha();
+        if (logoLike) {
+            Paint bg = new Paint(Paint.DITHER_FLAG);
+            bg.setShader(new LinearGradient(0, 0, w, h, 0xFF3A3C42, 0xFF1E2024, Shader.TileMode.CLAMP));
+            c.drawRect(0, 0, w, h, bg);
+        }
+        float scale = logoLike
+                ? Math.min(w * 0.78f / src.getWidth(), h * 0.62f / src.getHeight())
+                : Math.max(w / (float) src.getWidth(), h / (float) src.getHeight());
+        float sw = src.getWidth() * scale, sh = src.getHeight() * scale;
+        android.graphics.RectF dst = new android.graphics.RectF((w - sw) / 2f, (h - sh) / 2f, (w + sw) / 2f, (h + sh) / 2f);
+        c.drawBitmap(src, null, dst, new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG));
+        return new BitmapDrawable(res, b);
+    }
+
+    private static float luminance(int c) {
+        return (0.2126f * Color.red(c) + 0.7152f * Color.green(c) + 0.0722f * Color.blue(c)) / 255f;
     }
 
     private static void drawIcon(Canvas c, Drawable icon, int x, int y, int size) {
