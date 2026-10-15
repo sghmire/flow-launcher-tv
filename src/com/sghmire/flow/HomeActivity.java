@@ -111,6 +111,7 @@ public class HomeActivity extends Activity {
     private boolean launching;
     private boolean revealPending;
     private TextView cardsLabel;
+    private View upperRow;
     private RowScrollView cardsScroll, dockScroll;
     private LinearLayout cardsRow, dockRow;
 
@@ -144,6 +145,12 @@ public class HomeActivity extends Activity {
         setContentView(buildUi());
         // The backdrop covers the whole window, so skip painting the theme background under it.
         getWindow().setBackgroundDrawable(null);
+        // The top row follows whichever app is focused in the dock.
+        getWindow().getDecorView().getViewTreeObserver().addOnGlobalFocusChangeListener((oldF, newF) -> {
+            if (newF != null && newF.getParent() == dockRow) {
+                onDockFocus(newF.getTag() instanceof String ? (String) newF.getTag() : null);
+            }
+        });
 
         IntentFilter pf = new IntentFilter();
         pf.addAction(Intent.ACTION_PACKAGE_ADDED);
@@ -311,6 +318,7 @@ public class HomeActivity extends Activity {
 
         // Continue Watching row.
         LinearLayout upper = new LinearLayout(this);
+        upperRow = upper;
         upper.setOrientation(LinearLayout.VERTICAL);
         upper.setClipChildren(false);
         cardsLabel = new TextView(this);
@@ -563,38 +571,120 @@ public class HomeActivity extends Activity {
 
     private static final class WatchItem {
         String title, image, intentUri, pkg;
-        long engaged, position, duration;
+        long engaged, position, duration, weight;
     }
 
+    /**
+     * Reads what apps publish for the home screen: "Watch Next" (things you're in the middle
+     * of) and preview programs (each app's own recommendation rows), grouped by app.
+     */
     private void loadWatchNext() {
         lastWatchNextLoad = System.currentTimeMillis();
         io.execute(() -> {
-            List<WatchItem> items = new ArrayList<>();
+            List<WatchItem> watchNext = new ArrayList<>();
+            java.util.Map<String, List<WatchItem>> byPkg = new java.util.HashMap<>();
             try (Cursor c = getContentResolver().query(
                     TvContract.WatchNextPrograms.CONTENT_URI, null, null, null, null)) {
-                if (c != null) {
-                    while (c.moveToNext()) {
-                        if (getInt(c, TvContract.WatchNextPrograms.COLUMN_BROWSABLE, 1) == 0) continue;
-                        WatchItem w = new WatchItem();
-                        w.title = getString(c, TvContract.WatchNextPrograms.COLUMN_TITLE);
-                        w.image = getString(c, TvContract.WatchNextPrograms.COLUMN_THUMBNAIL_URI);
-                        if (w.image == null) w.image = getString(c, TvContract.WatchNextPrograms.COLUMN_POSTER_ART_URI);
-                        w.intentUri = getString(c, TvContract.WatchNextPrograms.COLUMN_INTENT_URI);
-                        w.pkg = getString(c, TvContract.WatchNextPrograms.COLUMN_PACKAGE_NAME);
-                        w.engaged = getLong(c, TvContract.WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS);
-                        w.position = getLong(c, TvContract.WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS);
-                        w.duration = getLong(c, TvContract.WatchNextPrograms.COLUMN_DURATION_MILLIS);
-                        items.add(w);
-                    }
+                while (c != null && c.moveToNext()) {
+                    if (getInt(c, TvContract.WatchNextPrograms.COLUMN_BROWSABLE, 1) == 0) continue;
+                    WatchItem w = readItem(c);
+                    w.engaged = getLong(c, TvContract.WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS);
+                    w.position = getLong(c, TvContract.WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS);
+                    w.duration = getLong(c, TvContract.WatchNextPrograms.COLUMN_DURATION_MILLIS);
+                    watchNext.add(w);
                 }
             } catch (Exception e) {
                 Log.w(TAG, "watch next query failed: " + e);
             }
-            Collections.sort(items, (a, b) -> Long.compare(b.engaged, a.engaged));
-            if (items.size() > 20) items.subList(20, items.size()).clear();
-            Log.i(TAG, "watch next items: " + items.size());
-            main.post(() -> showCards(items));
+            Collections.sort(watchNext, (a, b) -> Long.compare(b.engaged, a.engaged));
+            for (WatchItem w : watchNext) {
+                if (w.pkg != null) byPkg.computeIfAbsent(w.pkg, k -> new ArrayList<>()).add(w);
+            }
+            try (Cursor c = getContentResolver().query(TvContract.PreviewPrograms.CONTENT_URI, null, null, null, null)) {
+                java.util.Map<String, List<WatchItem>> previews = new java.util.HashMap<>();
+                while (c != null && c.moveToNext()) {
+                    if (getInt(c, TvContract.PreviewPrograms.COLUMN_BROWSABLE, 1) == 0) continue;
+                    WatchItem w = readItem(c);
+                    w.weight = getLong(c, TvContract.PreviewPrograms.COLUMN_WEIGHT);
+                    if (w.pkg != null && w.image != null) previews.computeIfAbsent(w.pkg, k -> new ArrayList<>()).add(w);
+                }
+                for (java.util.Map.Entry<String, List<WatchItem>> e : previews.entrySet()) {
+                    List<WatchItem> list = e.getValue();
+                    Collections.sort(list, (a, b) -> Long.compare(b.weight, a.weight));
+                    byPkg.computeIfAbsent(e.getKey(), k -> new ArrayList<>()).addAll(list);
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "preview programs query failed: " + e);
+            }
+            for (List<WatchItem> list : byPkg.values()) {
+                if (list.size() > 16) list.subList(16, list.size()).clear();
+            }
+            if (watchNext.size() > 16) watchNext.subList(16, watchNext.size()).clear();
+            Log.i(TAG, "home content: watch next " + watchNext.size() + ", apps " + byPkg.keySet());
+            main.post(() -> {
+                continueWatching = watchNext;
+                contentByPkg = byPkg;
+                showContext(contextPkg, false);
+            });
         });
+    }
+
+    private static WatchItem readItem(Cursor c) {
+        WatchItem w = new WatchItem();
+        w.title = getString(c, TvContract.WatchNextPrograms.COLUMN_TITLE);
+        w.image = getString(c, TvContract.WatchNextPrograms.COLUMN_THUMBNAIL_URI);
+        if (w.image == null) w.image = getString(c, TvContract.WatchNextPrograms.COLUMN_POSTER_ART_URI);
+        w.intentUri = getString(c, TvContract.WatchNextPrograms.COLUMN_INTENT_URI);
+        w.pkg = getString(c, TvContract.WatchNextPrograms.COLUMN_PACKAGE_NAME);
+        return w;
+    }
+
+    // ---------------------------------------------------------------- Context row
+
+    /** App whose content the top row shows; null means the cross-app Continue Watching. */
+    private String contextPkg;
+    private String shownContext = "\u0000";
+    private List<WatchItem> continueWatching = new ArrayList<>();
+    private java.util.Map<String, List<WatchItem>> contentByPkg = new java.util.HashMap<>();
+    private final Runnable applyContext = () -> showContext(contextPkg, true);
+
+    /** Called when focus lands on a dock tile: after a short rest, the top row follows that app. */
+    private void onDockFocus(String pkg) {
+        // Apps that publish nothing fall back to the cross-app Continue Watching row.
+        String next = pkg != null && contentByPkg.containsKey(pkg) ? pkg : null;
+        if (next == null ? contextPkg == null : next.equals(contextPkg)) {
+            main.removeCallbacks(applyContext);
+            return;
+        }
+        contextPkg = next;
+        main.removeCallbacks(applyContext);
+        main.postDelayed(applyContext, 280);
+    }
+
+    private void showContext(String pkg, boolean animate) {
+        List<WatchItem> items = pkg == null ? continueWatching : contentByPkg.get(pkg);
+        if (items == null) items = continueWatching;
+        String label = pkg == null ? "Continue Watching" : labelFor(pkg);
+        String key = pkg == null ? "" : pkg;
+        boolean contextChanged = !key.equals(shownContext);
+        shownContext = key;
+        List<WatchItem> show = items;
+        if (!animate || !contextChanged || cardsRow.hasFocus()) {
+            cardsLabel.setText(label);
+            showCards(show);
+            return;
+        }
+        // Crossfade the row to the new app's content.
+        upperRow.animate().cancel();
+        upperRow.animate().alpha(0f).translationY(px(6)).setDuration(ms(130)).setInterpolator(EASE_OUT)
+                .withEndAction(() -> {
+                    cardsLabel.setText(label);
+                    cardsScroll.reset();
+                    showCards(show);
+                    upperRow.setTranslationY(-px(6));
+                    upperRow.animate().alpha(1f).translationY(0).setDuration(ms(240))
+                            .setInterpolator(EASE_OUT).start();
+                }).start();
     }
 
     private static String getString(Cursor c, String col) {
