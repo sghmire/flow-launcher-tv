@@ -29,3 +29,5 @@ README screenshots and all three GIFs use Nuvio Legacy on the same TV on 2026-10
 Removed the oval light pool above the dock, softened the edge vignette, and introduced a subtle blue-charcoal gradient in `BackdropView.java`. Built successfully and installed on the TV; all README captures were refreshed. Current APK remains 62,295 bytes, SHA-256 `98e57d1fb656be4eaf5940b60af4cdf0aa1f1f938404790efae4bc4b2d5adc0e`. The older numerical measurements and APK hashes above describe the pre-refresh build.
 
 Nuvio replaced the previous Netflix demos because its loaded home screen is visible in ADB captures. No source changes or new performance measurements were made for this capture replacement. Existing unrelated source edits remain uncommitted.
+
+The package was subsequently renamed to `com.gfs.flow`. Raw measurements and commands above retain the original `com.sghmire.flow` identity used during capture.

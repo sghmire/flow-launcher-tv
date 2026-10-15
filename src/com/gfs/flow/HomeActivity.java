@@ -1,4 +1,4 @@
-package com.sghmire.flow;
+package com.gfs.flow;
 
 import android.app.Activity;
 import android.app.ActivityManager;
@@ -1184,7 +1184,7 @@ public class HomeActivity extends Activity {
     }
 
     /**
-     * Sets a tile's picture from a link: am start -n com.sghmire.flow/.HomeActivity
+     * Sets a tile's picture from a link: am start -n com.gfs.flow/.HomeActivity
      *   --es flow.tile_image "<package> <https url>"   ("<package> clear" removes it)
      */
     private boolean handleTileImage(Intent intent) {

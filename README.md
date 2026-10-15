@@ -45,7 +45,9 @@ Press Home from an app to return to the dock with a collapsing tile animation. R
 
 ## Install
 
-Requires **Android TV / Google TV running Android 9 or newer**.
+Requires **Android TV / Google TV running Android 9 or newer**. Package ID: `com.gfs.flow`.
+
+Earlier development builds used `com.sghmire.flow`. The new package installs separately and does not inherit the old app’s preferences or default Home selection.
 
 1. Download the shared Flow release APK and transfer it to your TV.
 2. Open the APK with a file manager. If prompted, allow that file manager to **install unknown apps**, then choose **Install**.
@@ -70,20 +72,20 @@ adb pair TV_IP:PAIRING_PORT
 adb connect TV_IP:DEBUG_PORT
 export ANDROID_SERIAL=TV_IP:DEBUG_PORT
 adb install -r /path/to/flow.apk
-adb shell am start -n com.sghmire.flow/.HomeActivity
+adb shell am start -n com.gfs.flow/.HomeActivity
 ```
 
 USB connections can use their device serial instead. Optional permissions for content rows and recent-app history:
 
 ```sh
-adb shell pm grant com.sghmire.flow android.permission.READ_TV_LISTINGS
-adb shell appops set com.sghmire.flow GET_USAGE_STATS allow
+adb shell pm grant com.gfs.flow android.permission.READ_TV_LISTINGS
+adb shell appops set com.gfs.flow GET_USAGE_STATS allow
 ```
 
 On TVs supporting this command, set Flow as the default Home app:
 
 ```sh
-adb shell cmd package set-home-activity com.sghmire.flow/.HomeActivity
+adb shell cmd package set-home-activity com.gfs.flow/.HomeActivity
 ```
 
 </details>

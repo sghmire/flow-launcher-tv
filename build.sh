@@ -37,6 +37,6 @@ echo "Built $OUT/flow.apk ($(du -h "$OUT/flow.apk" | cut -f1))"
 if [ "${1:-}" = "install" ]; then
   export ANDROID_SERIAL="${ANDROID_SERIAL:-192.168.1.98:38163}"
   adb install -r "$OUT/flow.apk"
-  adb shell pm grant com.sghmire.flow android.permission.READ_TV_LISTINGS || true
-  adb shell appops set com.sghmire.flow GET_USAGE_STATS allow || true
+  adb shell pm grant com.gfs.flow android.permission.READ_TV_LISTINGS || true
+  adb shell appops set com.gfs.flow GET_USAGE_STATS allow || true
 fi
