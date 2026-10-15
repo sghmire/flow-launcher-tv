@@ -624,7 +624,7 @@ public class HomeActivity extends Activity {
             main.post(() -> {
                 continueWatching = watchNext;
                 contentByPkg = byPkg;
-                contextPkg = focusedDockPkg != null && byPkg.containsKey(focusedDockPkg) ? focusedDockPkg : null;
+                contextPkg = focusedDockPkg;
                 showContext(contextPkg, false);
             });
         });
@@ -653,8 +653,8 @@ public class HomeActivity extends Activity {
     /** Called when focus lands on a dock tile: after a short rest, the top row follows that app. */
     private void onDockFocus(String pkg) {
         focusedDockPkg = pkg;
-        // Apps that publish nothing leave the row blank.
-        String next = pkg != null && contentByPkg.containsKey(pkg) ? pkg : null;
+        // Apps that publish nothing show just their name over an empty row.
+        String next = pkg;
         if (next == null ? contextPkg == null : next.equals(contextPkg)) {
             main.removeCallbacks(applyContext);
             return;
@@ -668,6 +668,7 @@ public class HomeActivity extends Activity {
         List<WatchItem> items = pkg == null ? null : contentByPkg.get(pkg);
         if (items == null) items = Collections.emptyList();
         String label = pkg == null ? "" : labelFor(pkg);
+        boolean nameOnly = items.isEmpty();
         String key = pkg == null ? "" : pkg;
         boolean contextChanged = !key.equals(shownContext);
         shownContext = key;
@@ -675,6 +676,7 @@ public class HomeActivity extends Activity {
         if (!animate || !contextChanged || cardsRow.hasFocus()) {
             cardsLabel.setText(label);
             showCards(show);
+            if (nameOnly) cardsLabel.setVisibility(label.isEmpty() ? View.INVISIBLE : View.VISIBLE);
             return;
         }
         // Crossfade the row to the new app's content.
@@ -684,6 +686,7 @@ public class HomeActivity extends Activity {
                     cardsLabel.setText(label);
                     cardsScroll.reset();
                     showCards(show);
+                    if (nameOnly) cardsLabel.setVisibility(label.isEmpty() ? View.INVISIBLE : View.VISIBLE);
                     upperRow.setTranslationY(-px(6));
                     upperRow.animate().alpha(1f).translationY(0).setDuration(ms(240))
                             .setInterpolator(EASE_OUT).start();
