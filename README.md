@@ -45,35 +45,48 @@ Press Home from an app to return to the dock with a collapsing tile animation. R
 
 ## Install
 
-Requires Android 9 / API 28 or later and a TV remote or D-pad. Build the APK using the instructions below. Enable developer options and ADB debugging on the TV, then connect using the address and port shown by the device. For wireless debugging that requires pairing:
+Requires **Android TV / Google TV running Android 9 or newer**.
+
+1. Download the shared Flow release APK and transfer it to your TV.
+2. Open the APK with a file manager. If prompted, allow that file manager to **install unknown apps**, then choose **Install**.
+3. Open **Flow** from your apps list.
+4. To use Flow when you press Home, choose it in your TV's default Home app settings or Home chooser, if supported.
+
+For updates, install the newer APK over the existing version to keep your layout and preferences. If you previously installed a development build signed with a different key, you must uninstall it first; this removes Flow's saved settings.
+
+Home-button support varies by TV. You can switch back through the default Home settings; there is no need to disable the stock launcher.
+
+<details>
+<summary>Optional setup: content rows, recent-app history, and ADB</summary>
+
+Allow TV-listing access if Flow requests it. For recent-app history, enable **Usage access** for Flow in the TV settings where available. Content rows depend on what installed apps publish and may be empty.
+
+If you prefer installing from a computer, enable ADB debugging on the TV and authorize your computer. Use the address and port shown by the TV; wireless pairing, when required, uses a separate pairing port.
 
 ```sh
+# Only if the TV requires wireless pairing:
 adb pair TV_IP:PAIRING_PORT
+
 adb connect TV_IP:DEBUG_PORT
-adb devices -l
 export ANDROID_SERIAL=TV_IP:DEBUG_PORT
-adb install -r build/flow.apk
+adb install -r /path/to/flow.apk
 adb shell am start -n com.sghmire.flow/.HomeActivity
 ```
 
-USB-connected devices can use their serial instead. Pairing and connection ports can differ. Authorize the computer on the TV when prompted.
-
-For content rows and recent-app history:
+USB connections can use their device serial instead. Optional permissions for content rows and recent-app history:
 
 ```sh
 adb shell pm grant com.sghmire.flow android.permission.READ_TV_LISTINGS
 adb shell appops set com.sghmire.flow GET_USAGE_STATS allow
 ```
 
-Content availability depends on the TV provider and what each app publishes; a row can be empty. Usage access can also be managed in the TV's settings where available.
-
-To make Flow the Home-button destination, select it in the device's default Home app settings or Home chooser. On devices that support the shell command:
+On TVs supporting this command, set Flow as the default Home app:
 
 ```sh
 adb shell cmd package set-home-activity com.sghmire.flow/.HomeActivity
 ```
 
-Home routing and double-Home behavior depend on the device firmware. To return to your previous launcher, select it again in default Home settings. The setup above does not disable the stock launcher.
+</details>
 
 ## Controls
 
