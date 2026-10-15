@@ -47,8 +47,6 @@ Press Home from an app to return to the dock with a collapsing tile animation. R
 
 Requires **Android TV / Google TV running Android 9 or newer**. Package ID: `com.gfs.flow`.
 
-Earlier development builds used `com.sghmire.flow`. The new package installs separately and does not inherit the old app’s preferences or default Home selection.
-
 1. Download the shared Flow release APK and transfer it to your TV.
 2. Open the APK with a file manager. If prompted, allow that file manager to **install unknown apps**, then choose **Install**.
 3. Open **Flow** from your apps list.
