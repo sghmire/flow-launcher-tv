@@ -28,6 +28,18 @@
         android:hardwareAccelerated="true"
         android:supportsRtl="true">
 
+        <service
+            android:name=".ClockDreamService"
+            android:label="Flow Clock"
+            android:exported="true"
+            android:process=":screensaver"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+
         <activity
             android:name=".HomeActivity"
             android:exported="true"

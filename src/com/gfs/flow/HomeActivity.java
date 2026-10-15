@@ -300,7 +300,12 @@ public class HomeActivity extends Activity {
             v.animate().alpha(f ? 1f : 0.75f).scaleX(f ? 1.15f : 1f).scaleY(f ? 1.15f : 1f)
                     .setDuration(ms(160)).start();
         });
-        gear.setOnClickListener(v -> launch(v, new Intent(Settings.ACTION_SETTINGS)));
+        gear.setContentDescription("Settings");
+        gear.setOnClickListener(v -> showPopup(v, "Settings", popup.menu(
+                new String[] {"Screensaver — Flow Clock", "Android settings"},
+                new Runnable[] {
+                        () -> openScreensaverSettings(),
+                        () -> startActivity(new Intent(Settings.ACTION_SETTINGS))})));
         top.addView(gear, new LinearLayout.LayoutParams(px(32), px(32)));
 
         TextClock clock = new TextClock(this);
@@ -1161,6 +1166,19 @@ public class HomeActivity extends Activity {
                         () -> showIconPicker(app, tile),
                         () -> setHidden(app.pkg, true),
                         () -> openAppInfo(app.pkg)}));
+    }
+
+    private void openScreensaverSettings() {
+        try {
+            startActivity(new Intent(Settings.ACTION_DREAM_SETTINGS));
+            android.widget.Toast.makeText(this,
+                    "Choose Flow Clock as your screensaver", android.widget.Toast.LENGTH_LONG).show();
+        } catch (android.content.ActivityNotFoundException e) {
+            android.widget.Toast.makeText(this,
+                    "Open Screensaver in your TV settings and choose Flow Clock",
+                    android.widget.Toast.LENGTH_LONG).show();
+            startActivity(new Intent(Settings.ACTION_SETTINGS));
+        }
     }
 
     private void openAppInfo(String pkg) {

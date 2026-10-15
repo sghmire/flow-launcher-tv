@@ -14,7 +14,7 @@ A compact Android TV home screen built with native Java views: a smooth blue-cha
 - Reorder apps, hide them in a folder, and restore them to the home screen.
 - Per-app tile styles: original banner, icon and name, icon on dark, name only, and supported brand logos. Custom pictures appear when configured.
 - Recent apps with reopen, dismiss, and Clear all actions.
-- Clock and a shortcut to Android settings.
+- Clock, Android settings shortcut, and a minimal Flow Clock screensaver.
 - Native Android implementation with no third-party runtime libraries.
 
 ### Opening an app
@@ -89,6 +89,12 @@ adb shell cmd package set-home-activity com.gfs.flow/.HomeActivity
 ```
 
 </details>
+
+## Clock screensaver
+
+Open Flow's **gear → Screensaver — Flow Clock**, then select **Flow Clock** in the TV's screensaver settings. Set the idle delay and use the system preview/start option where available. Android controls activation; selecting the shortcut alone does not change your screensaver.
+
+The screensaver shows a dim clock centered on black, follows the device's 12/24-hour preference, and exits on remote input. It runs in a separate process and creates its view only when started, so the launcher does not preload screensaver images or animations. There are no images or per-frame animation loops. Actual memory overhead has not yet been measured on a TV. Screensaver settings and availability vary by firmware.
 
 ## Controls
 
