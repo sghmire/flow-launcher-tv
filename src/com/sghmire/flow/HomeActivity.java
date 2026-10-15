@@ -1380,6 +1380,30 @@ public class HomeActivity extends Activity {
                 return true;
             }
         }
+        // Entering the top row from the dock (or the gear) always lands on its first card,
+        // instead of whichever card happens to sit above the focused tile.
+        if (e.getAction() == KeyEvent.ACTION_DOWN && cardsRow.getChildCount() > 0
+                && !popup.isShowing() && !folder.isShowing() && !recents.isShowing()) {
+            View f = getCurrentFocus();
+            boolean fromDock = f != null && f.getParent() == dockRow && e.getKeyCode() == KeyEvent.KEYCODE_DPAD_UP;
+            boolean fromTop = f != null && !cardsRow.hasFocus() && f.getParent() != dockRow
+                    && e.getKeyCode() == KeyEvent.KEYCODE_DPAD_DOWN;
+            if (fromDock || fromTop) {
+                cardsRow.getChildAt(0).requestFocus();
+                return true;
+            }
+        }
+        // Leaving the top row downwards returns to the app whose row it is.
+        if (e.getAction() == KeyEvent.ACTION_DOWN && e.getKeyCode() == KeyEvent.KEYCODE_DPAD_DOWN
+                && cardsRow.hasFocus() && focusedDockPkg != null) {
+            for (int k = 0; k < dockRow.getChildCount(); k++) {
+                View t = dockRow.getChildAt(k);
+                if (focusedDockPkg.equals(t.getTag())) {
+                    t.requestFocus();
+                    return true;
+                }
+            }
+        }
         return super.dispatchKeyEvent(e);
     }
 
