@@ -92,6 +92,7 @@ public class HomeActivity extends Activity {
     private final java.util.Map<String, AppEntry> appsByPkg = new java.util.HashMap<>();
     private SharedPreferences prefs;
     private String pendingFocusPkg;
+    private ValueAnimator shrinkAnim;
     private Drawable lastArt;
     private boolean lastFill;
     private float lastRadius;
@@ -787,6 +788,7 @@ public class HomeActivity extends Activity {
         hero.setProgress(1f);
 
         ValueAnimator shrink = ValueAnimator.ofFloat(1f, 0f);
+        shrinkAnim = shrink;
         shrink.setDuration(ms(650));
         shrink.setInterpolator(COLLAPSE);
         shrink.addUpdateListener(an -> hero.setProgress((float) an.getAnimatedValue()));
@@ -807,12 +809,28 @@ public class HomeActivity extends Activity {
     // ---------------------------------------------------------------- Recents
 
     private void showRecents() {
+        // Double-press from inside an app: go straight to Recents, no shrink-back animation,
+        // and put the Recents backdrop up at once so the app fades directly into it.
+        boolean fromApp = revealPending || returnStaged || hero.getVisibility() == View.VISIBLE;
+        cancelReturnAnimation();
+        if (fromApp) recents.coverNow();
         focusBeforeRecents = getCurrentFocus();
         stage.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
         io.execute(() -> {
             List<RecentsOverlay.Recent> list = recentApps();
             main.post(() -> recents.show(list));
         });
+    }
+
+    private void cancelReturnAnimation() {
+        revealPending = false;
+        returnStaged = false;
+        main.removeCallbacks(revealNow);
+        if (shrinkAnim != null) {
+            shrinkAnim.cancel();
+            shrinkAnim = null;
+        }
+        if (hero.getVisibility() == View.VISIBLE || stage.getAlpha() < 1f) resetStage();
     }
 
     void onRecentsHidden() {

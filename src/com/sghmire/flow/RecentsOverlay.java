@@ -114,6 +114,14 @@ public class RecentsOverlay extends FrameLayout {
         addView(clearAll, clp);
     }
 
+    /** Shows the empty Recents backdrop immediately, before its list has loaded. */
+    public void coverNow() {
+        animate().cancel();
+        row.removeAllViews();
+        setAlpha(1f);
+        setVisibility(VISIBLE);
+    }
+
     public boolean isShowing() {
         return showing;
     }
@@ -127,9 +135,12 @@ public class RecentsOverlay extends FrameLayout {
         clearAll.setVisibility(none ? GONE : VISIBLE);
         scroll.reset();
 
+        boolean covered = getVisibility() == VISIBLE && getAlpha() == 1f;
         setVisibility(VISIBLE);
-        setAlpha(0f);
-        animate().alpha(1f).setDuration(HomeActivity.ms(220)).setInterpolator(EASE).start();
+        if (!covered) {
+            setAlpha(0f);
+            animate().alpha(1f).setDuration(HomeActivity.ms(220)).setInterpolator(EASE).start();
+        }
         // Cards rise into place one after another.
         for (int i = 0; i < row.getChildCount(); i++) {
             View c = row.getChildAt(i);
