@@ -1,6 +1,5 @@
 #!/bin/bash
-# Targets SDK 33 on purpose: from 34, killBackgroundProcesses() can no longer close other
-# apps, which the Recent apps screen relies on.
+# Targets Android 14; Recents dismissal does not force-stop other apps.
 # Builds Flow without Gradle: aapt2 -> javac -> d8 -> zipalign -> apksigner.
 # Usage: ./build.sh [install]   (install pushes to $ANDROID_SERIAL, default the TV)
 set -euo pipefail
@@ -20,7 +19,7 @@ sed 's/<manifest /<manifest package="com.gfs.flow" /' AndroidManifest.xml > "$OU
 
 "$BT/aapt2" compile --dir res -o "$OUT/res.zip"
 "$BT/aapt2" link -I "$JAR" --manifest "$OUT/AndroidManifest.xml" \
-  --min-sdk-version 28 --target-sdk-version 33 \
+  --min-sdk-version 28 --target-sdk-version 34 \
   --java "$OUT/gen" -o "$OUT/flow.unaligned.apk" "$OUT/res.zip"
 
 "$JAVA_HOME/bin/javac" -nowarn -Xlint:-options -source 8 -target 8 \

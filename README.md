@@ -168,7 +168,7 @@ To build and install together, explicitly choose your device (the script otherwi
 ANDROID_SERIAL=TV_IP:DEBUG_PORT ./build.sh install
 ```
 
-Version: **0.1**. Minimum SDK: **28**; target SDK: **33**; compile platform: **34**. The target is intentionally pinned in the current script for the recent-app cleanup behavior; OS restrictions still apply.
+Version: **0.1**. Minimum SDK: **28**; target SDK: **34**; compile platform: **34**. Both build paths target Android 14. On Android 14 and newer, dismissing a recent app only removes its card; Android does not allow Flow to kill other apps’ processes.
 
 ## Device measurements
 

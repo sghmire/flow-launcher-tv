@@ -9,8 +9,8 @@ android {
     defaultConfig {
         applicationId 'com.gfs.flow'
         minSdk 28
-        // Preserve the existing recent-app cleanup behavior.
-        targetSdk 33
+        // Android TV target; older devices remain supported through minSdk.
+        targetSdk 34
         versionCode 1
         versionName '0.1'
     }

@@ -1079,10 +1079,11 @@ public class HomeActivity extends Activity {
         launch(art, i, bannerFor(pkg), false, radius);
     }
 
-    /** Closes an app's background processes and drops it from Recents until it's used again. */
+    /** Dismisses a recent app; background cleanup is available only before Android 14. */
     void closeApp(String pkg) {
         Log.i(TAG, "closing " + pkg);
         prefs.edit().putLong("dismissed:" + pkg, System.currentTimeMillis()).apply();
+        if (android.os.Build.VERSION.SDK_INT >= 34) return;
         try {
             ((ActivityManager) getSystemService(ACTIVITY_SERVICE)).killBackgroundProcesses(pkg);
         } catch (Exception e) {

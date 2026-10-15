@@ -20,7 +20,7 @@ import java.util.List;
 
 /**
  * Recent apps, opened by pressing Home twice. Left/right to browse, OK to open,
- * Up to swipe an app away (closes it), "Clear all" to close everything listed.
+ * Up to swipe an app away (dismisses it), "Clear all" to dismiss everything listed.
  */
 public class RecentsOverlay extends FrameLayout {
     /** One recently used app. */
@@ -62,7 +62,7 @@ public class RecentsOverlay extends FrameLayout {
         title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         header.addView(title);
         TextView hint = new TextView(home);
-        hint.setText("OK to open  ·  Up to close an app  ·  Back to return");
+        hint.setText("OK to open  ·  Up to dismiss an app  ·  Back to return");
         hint.setTextColor(0x99FFFFFF);
         hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         hint.setPadding(0, home.px(6), 0, 0);
@@ -221,7 +221,7 @@ public class RecentsOverlay extends FrameLayout {
         return card;
     }
 
-    /** Swipe a card up and away, closing its app. */
+    /** Swipe a card up and away, dismissing it from Recents. */
     private void dismiss(View card) {
         if (card.getTag(R.id.flow_dismissing) != null) return;
         card.setTag(R.id.flow_dismissing, Boolean.TRUE);
