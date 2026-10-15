@@ -2,9 +2,7 @@ package com.sghmire.flow;
 
 import android.graphics.Color;
 import android.graphics.RectF;
-import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
-import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,7 +11,6 @@ import android.view.animation.PathInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.TextView;
 
 import java.util.List;
 
@@ -56,14 +53,7 @@ public class FolderOverlay extends FrameLayout {
         header.setGravity(Gravity.CENTER_VERTICAL);
         ImageView mark = new ImageView(home);
         mark.setImageResource(R.drawable.ic_flow_mark);
-        header.addView(mark, new LinearLayout.LayoutParams(home.px(26), home.px(18)));
-        TextView title = new TextView(home);
-        title.setText("Hidden apps");
-        title.setTextColor(Color.WHITE);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
-        title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        title.setPadding(home.px(10), 0, 0, 0);
-        header.addView(title);
+        header.addView(mark, new LinearLayout.LayoutParams(home.px(34), home.px(21)));
         panel.addView(header);
 
         grid = new LinearLayout(home);

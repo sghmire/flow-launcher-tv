@@ -1029,28 +1029,11 @@ public class HomeActivity extends Activity {
         GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 new int[] {0xFF3B3E45, 0xFF24262B});
         tile.setBackground(bg);
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.HORIZONTAL);
-        content.setGravity(Gravity.CENTER);
+        // Just the Flow mark: the tile reads as Flow's own folder, no label needed.
         ImageView icon = new ImageView(this);
         icon.setImageResource(R.drawable.ic_flow_mark);
-        content.addView(icon, new LinearLayout.LayoutParams(px(30), px(21)));
-        LinearLayout text = new LinearLayout(this);
-        text.setOrientation(LinearLayout.VERTICAL);
-        text.setPadding(px(9), 0, 0, 0);
-        TextView title = new TextView(this);
-        title.setText("Hidden");
-        title.setTextColor(Color.WHITE);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        text.addView(title);
-        TextView count = new TextView(this);
-        count.setText(hidden.size() == 1 ? "1 app" : hidden.size() + " apps");
-        count.setTextColor(0x99FFFFFF);
-        count.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
-        text.addView(count);
-        content.addView(text);
-        tile.addView(content, match());
+        tile.setContentDescription("Hidden apps");
+        tile.addView(icon, new FrameLayout.LayoutParams(px(46), px(28), Gravity.CENTER));
         attachFocusEffect(tile, 1.16f);
         tile.setOnClickListener(v -> {
             List<String> pkgs = new ArrayList<>();
