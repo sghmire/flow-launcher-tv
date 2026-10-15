@@ -1,20 +1,27 @@
 package com.sghmire.flow;
 
-import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Rect;
 import android.view.View;
-import android.view.animation.DecelerateInterpolator;
 import android.widget.HorizontalScrollView;
 
 /**
- * Horizontal row that glides to keep the focused item in view. With {@code anchorStart}
- * the focused item is pinned to the left edge (cards row); otherwise it scrolls only as
- * much as needed (dock).
+ * Horizontal row that follows the focused item with a critically damped spring. Retargeting
+ * mid-flight keeps the current velocity, so holding the D-pad glides instead of stuttering
+ * through restarted animations. With {@code anchorStart} the focused item is pinned to the
+ * left edge (cards row); otherwise it scrolls only as much as needed (dock).
  */
 public class RowScrollView extends HorizontalScrollView {
+    /** Spring stiffness; settles in roughly 4 / OMEGA seconds. */
+    private static final float OMEGA = 17f;
+
     private final boolean anchorStart;
-    private ValueAnimator scroller;
+    private float pos, vel;
+    private int target;
+    private boolean running;
+    private long lastFrameNanos;
+
+    private final Runnable frame = this::step;
 
     public RowScrollView(Context context, boolean anchorStart) {
         super(context);
@@ -34,7 +41,7 @@ public class RowScrollView extends HorizontalScrollView {
 
     @Override
     public boolean requestChildRectangleOnScreen(View child, Rect rect, boolean immediate) {
-        // Scrolling is driven by requestChildFocus so the motion stays on one animator.
+        // Scrolling is driven by requestChildFocus so the motion stays on one spring.
         return false;
     }
 
@@ -43,32 +50,55 @@ public class RowScrollView extends HorizontalScrollView {
         View content = getChildAt(0);
         int left = focused.getLeft(), right = focused.getRight();
         int max = Math.max(0, content.getWidth() - getWidth());
-        int target;
+        int pad = content.getPaddingLeft();
+        int t;
         if (anchorStart) {
-            target = left - content.getPaddingLeft();
+            t = left - pad;
         } else {
-            int pad = content.getPaddingLeft();
-            int x = getScrollX();
-            if (left - pad < x) target = left - pad;
-            else if (right + pad > x + getWidth()) target = right + pad - getWidth();
-            else target = x;
+            // Measure against where the spring is heading, not where it is mid-flight.
+            int x = running ? target : getScrollX();
+            if (left - pad < x) t = left - pad;
+            else if (right + pad > x + getWidth()) t = right + pad - getWidth();
+            else t = x;
         }
-        return Math.max(0, Math.min(max, target));
+        return Math.max(0, Math.min(max, t));
     }
 
-    private void glideTo(int target) {
-        if (scroller != null) scroller.cancel();
-        int from = getScrollX();
-        if (from == target) return;
-        scroller = ValueAnimator.ofInt(from, target);
-        scroller.setDuration(320);
-        scroller.setInterpolator(new DecelerateInterpolator(1.8f));
-        scroller.addUpdateListener(a -> scrollTo((int) a.getAnimatedValue(), 0));
-        scroller.start();
+    private void glideTo(int t) {
+        target = t;
+        if (running) return;
+        if (getScrollX() == t) return;
+        pos = getScrollX();
+        vel = 0;
+        running = true;
+        lastFrameNanos = System.nanoTime();
+        postOnAnimation(frame);
+    }
+
+    private void step() {
+        if (!running) return;
+        long now = System.nanoTime();
+        float dt = Math.min(0.034f, (now - lastFrameNanos) / 1e9f);
+        lastFrameNanos = now;
+        // Two half-steps keep the integration stable when a frame runs long.
+        for (int i = 0; i < 2; i++) {
+            float h = dt / 2f;
+            float accel = -OMEGA * OMEGA * (pos - target) - 2f * OMEGA * vel;
+            vel += accel * h;
+            pos += vel * h;
+        }
+        if (Math.abs(pos - target) < 0.5f && Math.abs(vel) < 8f) {
+            running = false;
+            scrollTo(target, 0);
+            return;
+        }
+        scrollTo(Math.round(pos), 0);
+        postOnAnimation(frame);
     }
 
     public void reset() {
-        if (scroller != null) scroller.cancel();
+        running = false;
+        removeCallbacks(frame);
         scrollTo(0, 0);
     }
 }

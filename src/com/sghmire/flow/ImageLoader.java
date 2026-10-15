@@ -47,7 +47,7 @@ public class ImageLoader {
                 if (!uri.equals(target.getTag())) return;
                 target.setAlpha(0f);
                 target.setImageBitmap(bm);
-                target.animate().alpha(1f).setDuration(220).start();
+                target.animate().alpha(1f).setDuration(HomeActivity.ms(220)).start();
             });
         });
     }

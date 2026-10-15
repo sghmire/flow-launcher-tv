@@ -1,6 +1,7 @@
 package com.sghmire.flow;
 
 import android.app.Activity;
+import android.animation.ValueAnimator;
 import android.app.ActivityOptions;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -11,6 +12,8 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.database.ContentObserver;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Outline;
 import android.graphics.Typeface;
@@ -18,6 +21,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.media.tv.TvContract;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -30,7 +34,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.animation.DecelerateInterpolator;
-import android.view.animation.OvershootInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -60,6 +63,8 @@ public class HomeActivity extends Activity {
             "com.amazon.amazonvideo.livingroom",
             "com.google.android.youtube.tv");
 
+    private static final DecelerateInterpolator EASE_OUT = new DecelerateInterpolator(2f);
+
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private ImageLoader images;
@@ -73,6 +78,8 @@ public class HomeActivity extends Activity {
     private View lastLaunched;
     private boolean returningFromApp;
     private boolean firstAppsLoad = true;
+    private boolean returnStaged;
+    private String cardsSignature;
     private long lastWatchNextLoad;
 
     private final BroadcastReceiver packageReceiver = new BroadcastReceiver() {
@@ -137,13 +144,24 @@ public class HomeActivity extends Activity {
     }
 
     @Override
+    protected void onStop() {
+        super.onStop();
+        if (returningFromApp) stageReturnAnimation();
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
+        boolean animating = returningFromApp;
         if (returningFromApp) {
             returningFromApp = false;
             playReturnAnimation();
         }
-        if (System.currentTimeMillis() - lastWatchNextLoad > 15_000) loadWatchNext();
+        if (System.currentTimeMillis() - lastWatchNextLoad > 15_000) {
+            // Refresh after the return animation so a row rebuild never lands mid-motion.
+            if (animating) main.postDelayed(this::loadWatchNext, 900);
+            else loadWatchNext();
+        }
     }
 
     @Override
@@ -194,7 +212,7 @@ public class HomeActivity extends Activity {
         gear.setOnFocusChangeListener((v, f) -> {
             gearBg.setColor(f ? 0x33FFFFFF : Color.TRANSPARENT);
             v.animate().alpha(f ? 1f : 0.75f).scaleX(f ? 1.15f : 1f).scaleY(f ? 1.15f : 1f)
-                    .setDuration(160).start();
+                    .setDuration(ms(160)).start();
         });
         gear.setOnClickListener(v -> launch(v, new Intent(Settings.ACTION_SETTINGS)));
         top.addView(gear, new LinearLayout.LayoutParams(px(32), px(32)));
@@ -285,23 +303,14 @@ public class HomeActivity extends Activity {
         v.setClipToOutline(true);
     }
 
-    /** Focus treatment shared by cards and app tiles: lift and a thin white ring (no shadows: they cost GPU time). */
-    private void attachFocusEffect(View v, float scale, float radius) {
-        GradientDrawable ring = new GradientDrawable();
-        ring.setCornerRadius(radius);
-        ring.setStroke(px(2), Color.WHITE);
-        ring.setColor(Color.TRANSPARENT);
-        ring.setAlpha(0);
-        v.setForeground(ring);
-        v.setOnFocusChangeListener((view, focused) -> {
-            view.animate()
-                    .scaleX(focused ? scale : 1f)
-                    .scaleY(focused ? scale : 1f)
-                    .setDuration(focused ? 240 : 180)
-                    .setInterpolator(focused ? new OvershootInterpolator(1.1f) : new DecelerateInterpolator())
-                    .start();
-            ring.setAlpha(focused ? 230 : 0);
-        });
+    /** Focus treatment shared by cards and app tiles: a smooth zoom, nothing else. */
+    private void attachFocusEffect(View v, float scale) {
+        v.setOnFocusChangeListener((view, focused) -> view.animate()
+                .scaleX(focused ? scale : 1f)
+                .scaleY(focused ? scale : 1f)
+                .setDuration(ms(focused ? 220 : 180))
+                .setInterpolator(EASE_OUT)
+                .start());
     }
 
     // ---------------------------------------------------------------- Apps
@@ -397,7 +406,7 @@ public class HomeActivity extends Activity {
             col.addView(label);
             tile.addView(col, match());
         }
-        attachFocusEffect(tile, 1.16f, radius);
+        attachFocusEffect(tile, 1.16f);
         tile.setOnClickListener(v -> {
             Intent i = getPackageManager().getLeanbackLaunchIntentForPackage(app.pkg);
             if (i == null) i = new Intent(Intent.ACTION_MAIN).setComponent(app.component);
@@ -460,6 +469,10 @@ public class HomeActivity extends Activity {
     }
 
     private void showCards(List<WatchItem> items) {
+        StringBuilder sig = new StringBuilder();
+        for (WatchItem w : items) sig.append(w.title).append('|').append(w.image).append('|').append(w.position).append('\n');
+        if (sig.toString().equals(cardsSignature)) return; // nothing changed: keep views and images as they are
+        cardsSignature = sig.toString();
         boolean hadFocus = cardsRow.hasFocus();
         int focusedIndex = hadFocus ? cardsRow.indexOfChild(cardsRow.getFocusedChild()) : -1;
         cardsRow.removeAllViews();
@@ -509,7 +522,7 @@ public class HomeActivity extends Activity {
             card.addView(bar, bl);
         }
 
-        attachFocusEffect(card, 1.05f, radius);
+        attachFocusEffect(card, 1.06f);
         card.setOnClickListener(v -> {
             Intent i = null;
             if (item.intentUri != null) {
@@ -527,18 +540,41 @@ public class HomeActivity extends Activity {
 
     // ---------------------------------------------------------------- Launch / return animations
 
+    /**
+     * Durations here are designed in real milliseconds; undo the system animator speed setting
+     * so motion in Flow stays the same whatever that setting is.
+     */
+    static long ms(long designed) {
+        if (Build.VERSION.SDK_INT >= 33) {
+            float scale = ValueAnimator.getDurationScale();
+            if (scale > 0f) return (long) (designed / scale);
+        }
+        return designed;
+    }
+
+    private static Bitmap snapshot(View v) {
+        if (v.getWidth() == 0 || v.getHeight() == 0) return null;
+        try {
+            Bitmap b = Bitmap.createBitmap(v.getWidth(), v.getHeight(), Bitmap.Config.ARGB_8888);
+            v.draw(new Canvas(b));
+            return b;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     /** Opens the app growing out of the tile that was clicked. */
     private void launch(View from, Intent intent) {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        ActivityOptions opts = ActivityOptions.makeScaleUpAnimation(
-                from, 0, 0, from.getWidth(), from.getHeight());
-        // Quick press feedback on the tile while the app window grows out of it.
-        from.animate().scaleX(from.getScaleX() * 0.94f).scaleY(from.getScaleY() * 0.94f)
-                .setDuration(90).withEndAction(() -> from.animate()
-                        .scaleX(from.hasFocus() ? from.getScaleX() / 0.94f : 1f)
-                        .scaleY(from.hasFocus() ? from.getScaleY() / 0.94f : 1f)
-                        .setDuration(140).start())
-                .start();
+        // The tile's own picture grows to full screen and hands over to the app, instead of a
+        // blank (often black) window growing out of it.
+        ActivityOptions opts;
+        Bitmap thumb = snapshot(from);
+        if (thumb != null) {
+            opts = ActivityOptions.makeThumbnailScaleUpAnimation(from, thumb, 0, 0);
+        } else {
+            opts = ActivityOptions.makeScaleUpAnimation(from, 0, 0, from.getWidth(), from.getHeight());
+        }
         try {
             startActivity(intent, opts.toBundle());
             lastLaunched = from;
@@ -549,26 +585,37 @@ public class HomeActivity extends Activity {
         }
     }
 
+    /**
+     * Called while the launcher is hidden: put the screen in its zoomed-in starting pose now,
+     * so the very first visible frame on the way home is already part of the animation.
+     */
+    private void stageReturnAnimation() {
+        View tile = lastLaunched;
+        content.animate().cancel();
+        if (tile != null && tile.isAttachedToWindow()) {
+            int[] loc = new int[2];
+            tile.getLocationInWindow(loc);
+            content.setPivotX(loc[0] + tile.getWidth() / 2f);
+            content.setPivotY(loc[1] + tile.getHeight() / 2f);
+            content.setScaleX(1.18f);
+            content.setScaleY(1.18f);
+            tile.requestFocus();
+        }
+        content.setAlpha(0f);
+        returnStaged = true;
+    }
+
     /** Coming home: the screen settles back down into the tile the app was opened from. */
     private void playReturnAnimation() {
-        View tile = lastLaunched;
-        if (tile == null || !tile.isAttachedToWindow()) {
-            content.setAlpha(0f);
-            content.animate().alpha(1f).setDuration(300).start();
-            return;
-        }
-        int[] loc = new int[2];
-        tile.getLocationInWindow(loc);
-        content.setPivotX(loc[0] + tile.getWidth() / 2f);
-        content.setPivotY(loc[1] + tile.getHeight() / 2f);
-        content.setScaleX(1.18f);
-        content.setScaleY(1.18f);
-        content.setAlpha(0f);
+        if (!returnStaged) stageReturnAnimation();
+        returnStaged = false;
+        // withLayer() renders the screen once into a GPU texture and just scales that texture,
+        // instead of redrawing every tile and image on every frame of the animation.
         content.animate().scaleX(1f).scaleY(1f).alpha(1f)
-                .setDuration(520)
-                .setInterpolator(new DecelerateInterpolator(2.2f))
+                .setDuration(ms(420))
+                .setInterpolator(new DecelerateInterpolator(2.4f))
+                .withLayer()
                 .start();
-        tile.requestFocus();
     }
 
     @Override
