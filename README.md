@@ -4,7 +4,6 @@ A compact Android TV home screen built with native Java views: a smooth blue-cha
 
 ![Flow home screen](docs/images/home.png)
 
-[View the background without content cards](docs/images/background.png)
 
 ## Features
 
