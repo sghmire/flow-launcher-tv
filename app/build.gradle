@@ -1,0 +1,39 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.gfs.flow'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.gfs.flow'
+        minSdk 28
+        // Preserve the existing recent-app cleanup behavior.
+        targetSdk 33
+        versionCode 1
+        versionName '0.1'
+    }
+
+    sourceSets {
+        main {
+            manifest.srcFile '../AndroidManifest.xml'
+            java.srcDirs = ['../src']
+            res.srcDirs = ['../res']
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    buildTypes {
+        release {
+            // Keep behavior consistent with the existing direct SDK build.
+            minifyEnabled false
+            shrinkResources false
+            // Sign using Android Studio's wizard; never store key passwords here.
+        }
+    }
+}

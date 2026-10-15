@@ -15,7 +15,7 @@ A compact Android TV home screen built with native Java views: a smooth blue-cha
 - Per-app tile styles: original banner, icon and name, icon on dark, name only, and supported brand logos. Custom pictures appear when configured.
 - Recent apps with reopen, dismiss, and Clear all actions.
 - Clock and a shortcut to Android settings.
-- Native Android implementation with no Gradle or third-party runtime libraries.
+- Native Android implementation with no third-party runtime libraries.
 
 ### Opening an app
 
@@ -108,7 +108,24 @@ adb shell cmd package set-home-activity com.gfs.flow/.HomeActivity
 
 Recents is based on usage history, not a system task-manager snapshot. Dismiss/Clear all is not a guaranteed force-stop; Android and device firmware control background-process behavior.
 
-## Build
+## Build with Android Studio
+
+Open this repository folder in Android Studio and let Gradle sync. The `app` module uses the existing `src/` and `res/` directories. Use the bundled Gradle wrapper and Android Studio's embedded JDK (17 or newer).
+
+For the Run configuration, select **Android App**, name it **Flow**, choose module **app**, and leave **Launch: Default Activity**. Select your TV and press Run. Debug builds use the development signing key.
+
+For a shareable APK, choose **Build → Generate Signed App Bundle / APK → APK**, select module **app**, then your release keystore, alias, and passwords. Select **release** and finish the wizard. Keep signing secrets outside the repository and use the same release key for updates. A debug-signed install must be removed before installing a differently signed release with the same package ID; saved settings will be lost.
+
+Command-line builds:
+
+```sh
+./gradlew :app:assembleDebug
+./gradlew :app:assembleRelease
+```
+
+Outputs are in `app/build/outputs/apk/debug/` and `app/build/outputs/apk/release/`. The command-line release APK is **unsigned** until you sign it; the Android Studio wizard signs its output with the key you select. Gradle uses Android Gradle Plugin 9.3.2 and Gradle 9.5.0. Install SDK platform 34 and any build tools requested during sync.
+
+## Build with the standalone script
 
 The build script uses Android SDK tools directly: `aapt2 → javac → d8 → zipalign → apksigner`.
 

@@ -15,8 +15,11 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 rm -rf "$OUT" && mkdir -p "$OUT/gen" "$OUT/classes" "$OUT/dex"
 
+# The Gradle namespace lives in app/build.gradle; aapt2 needs it in its manifest.
+sed 's/<manifest /<manifest package="com.gfs.flow" /' AndroidManifest.xml > "$OUT/AndroidManifest.xml"
+
 "$BT/aapt2" compile --dir res -o "$OUT/res.zip"
-"$BT/aapt2" link -I "$JAR" --manifest AndroidManifest.xml \
+"$BT/aapt2" link -I "$JAR" --manifest "$OUT/AndroidManifest.xml" \
   --min-sdk-version 28 --target-sdk-version 33 \
   --java "$OUT/gen" -o "$OUT/flow.unaligned.apk" "$OUT/res.zip"
 
