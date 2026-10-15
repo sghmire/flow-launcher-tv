@@ -612,7 +612,7 @@ public class HomeActivity extends Activity {
         // withLayer() renders the screen once into a GPU texture and just scales that texture,
         // instead of redrawing every tile and image on every frame of the animation.
         content.animate().scaleX(1f).scaleY(1f).alpha(1f)
-                .setDuration(ms(420))
+                .setDuration(ms(640))
                 .setInterpolator(new DecelerateInterpolator(2.4f))
                 .withLayer()
                 .start();
