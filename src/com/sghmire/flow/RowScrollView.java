@@ -106,6 +106,11 @@ public class RowScrollView extends HorizontalScrollView {
         postOnAnimation(frame);
     }
 
+    /** Re-aims the row at {@code child} after the row's order changed under it. */
+    public void follow(View child) {
+        glideTo(targetFor(child));
+    }
+
     public void setPaging(int step, int perView) {
         this.step = step;
         this.perView = perView;

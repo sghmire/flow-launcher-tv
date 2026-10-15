@@ -160,7 +160,7 @@ public class FolderOverlay extends FrameLayout {
                 .setInterpolator(new DecelerateInterpolator(2f)).start());
         tile.setOnClickListener(v -> home.openHidden(v, pkg, radius, origin));
         tile.setOnLongClickListener(v -> {
-            home.showHiddenMenu(pkg);
+            home.showHiddenMenu(pkg, v);
             return true;
         });
         return tile;

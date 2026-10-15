@@ -2,7 +2,6 @@ package com.sghmire.flow;
 
 import android.app.Activity;
 import android.app.ActivityManager;
-import android.app.AlertDialog;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
 import android.animation.Animator;
@@ -33,6 +32,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.Settings;
+import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.util.Log;
 import android.util.TypedValue;
@@ -89,6 +89,7 @@ public class HomeActivity extends Activity {
     private HeroView hero;
     private RecentsOverlay recents;
     private FolderOverlay folder;
+    private PopupPanel popup;
     private View focusBeforeFolder;
     /** Where the return animation should land when an app was opened from Recents. */
     private View returnTarget;
@@ -224,6 +225,8 @@ public class HomeActivity extends Activity {
                 showRecents();
                 return;
             }
+            if (moveTile != null) endMove(false);
+            if (popup.isShowing()) popup.hide(false);
             if (recents.isShowing()) {
                 recents.hide(true);
                 return;
@@ -244,7 +247,8 @@ public class HomeActivity extends Activity {
     @Override
     public void onBackPressed() {
         // A home screen has nowhere to go back to; Back only closes the Recents screen.
-        if (recents.isShowing()) recents.hide(true);
+        if (popup.isShowing()) popup.hide(true);
+        else if (recents.isShowing()) recents.hide(true);
         else if (folder.isShowing()) folder.hide(true);
     }
 
@@ -358,6 +362,17 @@ public class HomeActivity extends Activity {
         dlp.bottomMargin = px(34);
         content.addView(dock, dlp);
 
+        moveHint = new TextView(this);
+        moveHint.setText("\u25C0 \u25B6  Move      OK  Done      Back  Cancel");
+        moveHint.setTextColor(0xCCFFFFFF);
+        moveHint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        moveHint.setVisibility(View.INVISIBLE);
+        FrameLayout.LayoutParams mlp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        mlp.bottomMargin = px(34 + 112 + 14);
+        content.addView(moveHint, mlp);
+
         returnCover = new View(this);
         returnCover.setBackgroundColor(RecentsOverlay.BACKDROP);
         returnCover.setVisibility(View.INVISIBLE);
@@ -366,6 +381,8 @@ public class HomeActivity extends Activity {
         root.addView(folder, match());
         recents = new RecentsOverlay(this);
         root.addView(recents, match());
+        popup = new PopupPanel(this);
+        root.addView(popup, match());
         hero = new HeroView(this);
         root.addView(hero, match());
         return root;
@@ -402,7 +419,10 @@ public class HomeActivity extends Activity {
         final String pkg;
         final ComponentName component;
         final String label;
-        final Drawable banner;
+        /** What the tile shows: the app's banner, or the style the user picked for it. */
+        Drawable banner;
+        /** The app's own banner (may be null), kept for the icon picker. */
+        final Drawable origBanner;
         final Drawable icon;
 
         AppEntry(String pkg, ComponentName component, String label, Drawable banner, Drawable icon) {
@@ -410,6 +430,7 @@ public class HomeActivity extends Activity {
             this.component = component;
             this.label = label;
             this.banner = banner;
+            this.origBanner = banner;
             this.icon = icon;
         }
     }
@@ -435,6 +456,15 @@ public class HomeActivity extends Activity {
             Collections.sort(rest, (a, b) -> a.label.compareToIgnoreCase(b.label));
             List<AppEntry> all = new ArrayList<>(favorites);
             all.addAll(rest);
+            // The user's own order (from Move) wins; anything not placed yet keeps the default order.
+            List<String> order = savedOrder();
+            Collections.sort(all, (a, b) -> Integer.compare(orderIndex(order, a.pkg), orderIndex(order, b.pkg)));
+            for (AppEntry e : all) {
+                int style = prefs.getInt("style:" + e.pkg, TileStyles.BANNER);
+                if (style != TileStyles.BANNER || e.origBanner == null) {
+                    e.banner = TileStyles.render(getResources(), style, e.origBanner, e.icon, e.label);
+                }
+            }
             main.post(() -> {
                 appsByPkg.clear();
                 for (AppEntry e : all) appsByPkg.put(e.pkg, e);
@@ -474,6 +504,7 @@ public class HomeActivity extends Activity {
         int left = n < DOCK_PER_VIEW ? (viewW - used) / 2 : side;
         dockRow.setPadding(left, 0, side, 0);
         dockScroll.setPaging(tileW + gap, DOCK_PER_VIEW);
+        dockGap = gap;
         for (int i = 0; i < n; i++) {
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(tileW, px(72));
             lp.rightMargin = i < n - 1 ? gap : 0;
@@ -522,7 +553,7 @@ public class HomeActivity extends Activity {
             launch(v, i, app.banner != null ? app.banner : app.icon, false, radius);
         });
         tile.setOnLongClickListener(v -> {
-            showTileMenu(app);
+            showTileMenu(app, v);
             return true;
         });
         return tile;
@@ -973,21 +1004,20 @@ public class HomeActivity extends Activity {
         launch(tile, i, bannerFor(pkg), false, radius);
     }
 
-    void showHiddenMenu(String pkg) {
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(labelFor(pkg))
-                .setItems(new CharSequence[] {"Show on home", "App info"}, (d, which) -> {
-                    if (which == 0) {
-                        folder.hide(false);
-                        pendingFocusPkg = pkg; // land on the app that came back
-                        setHidden(pkg, false);
-                    } else {
-                        startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                                .setData(android.net.Uri.fromParts("package", pkg, null))
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                    }
-                })
-                .show();
+    void showHiddenMenu(String pkg, View tile) {
+        AppEntry app = appsByPkg.get(pkg);
+        showPopup(tile, labelFor(pkg), popup.menu(
+                new String[] {"Show on home", "Change icon", "App info"},
+                new Runnable[] {
+                        () -> {
+                            folder.hide(false);
+                            pendingFocusPkg = pkg; // land on the app that came back
+                            setHidden(pkg, false);
+                        },
+                        () -> {
+                            if (app != null) showIconPicker(app, tile);
+                        },
+                        () -> openAppInfo(pkg)}));
     }
 
     // ---------------------------------------------------------------- Hiding apps
@@ -1005,19 +1035,187 @@ public class HomeActivity extends Activity {
     }
 
     /** Hold OK (or press Menu) on an app tile. */
-    private void showTileMenu(AppEntry app) {
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle(app.label)
-                .setItems(new CharSequence[] {"Hide from home", "App info"}, (d, which) -> {
-                    if (which == 0) {
-                        setHidden(app.pkg, true);
-                    } else {
-                        startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                                .setData(android.net.Uri.fromParts("package", app.pkg, null))
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                    }
-                })
-                .show();
+    private void showTileMenu(AppEntry app, View tile) {
+        showPopup(tile, app.label, popup.menu(
+                new String[] {"Move", "Change icon", "Hide from home", "App info"},
+                new Runnable[] {
+                        () -> startMove(tile),
+                        () -> showIconPicker(app, tile),
+                        () -> setHidden(app.pkg, true),
+                        () -> openAppInfo(app.pkg)}));
+    }
+
+    private void openAppInfo(String pkg) {
+        startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                .setData(android.net.Uri.fromParts("package", pkg, null))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+    }
+
+    private void showPopup(View anchor, String heading, View content) {
+        stage.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        folder.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        popup.show(anchor, heading, content);
+    }
+
+    void onPopupHidden(View anchor) {
+        folder.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        if (!folder.isShowing() && !recents.isShowing()) {
+            stage.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        }
+        if (anchor != null && anchor.isAttachedToWindow()) anchor.requestFocus();
+    }
+
+    // ---------------------------------------------------------------- Change icon
+
+    private void showIconPicker(AppEntry app, View tile) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setClipChildren(false);
+        row.setPadding(px(8), px(6), px(8), px(4));
+        int current = prefs.getInt("style:" + app.pkg, TileStyles.BANNER);
+        View currentView = null;
+        for (int style = 0; style < TileStyles.NAMES.length; style++) {
+            if (style == TileStyles.BANNER && app.origBanner == null) continue;
+            final int chosen = style;
+            LinearLayout option = new LinearLayout(this);
+            option.setOrientation(LinearLayout.VERTICAL);
+            option.setGravity(Gravity.CENTER_HORIZONTAL);
+            option.setFocusable(true);
+            option.setClipChildren(false);
+            FrameLayout preview = new FrameLayout(this);
+            roundCorners(preview, px(12));
+            ImageView iv = new ImageView(this);
+            iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            iv.setImageDrawable(TileStyles.render(getResources(), style, app.origBanner, app.icon, app.label));
+            preview.addView(iv, match());
+            option.addView(preview, new LinearLayout.LayoutParams(px(DOCK_TILE_W), px(72)));
+            TextView name = new TextView(this);
+            name.setText(TileStyles.NAMES[style] + (style == current ? "  \u2713" : ""));
+            name.setTextColor(0xCCFFFFFF);
+            name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            name.setPadding(0, px(10), 0, 0);
+            option.addView(name);
+            option.setOnFocusChangeListener((v, f) -> preview.animate()
+                    .scaleX(f ? 1.12f : 1f).scaleY(f ? 1.12f : 1f)
+                    .setDuration(ms(f ? 220 : 180)).setInterpolator(EASE_OUT).start());
+            option.setOnClickListener(v -> {
+                popup.hide(true);
+                if (folder.isShowing()) folder.hide(false);
+                prefs.edit().putInt("style:" + app.pkg, chosen).apply();
+                pendingFocusPkg = app.pkg;
+                loadApps();
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            if (row.getChildCount() > 0) lp.leftMargin = px(20);
+            row.addView(option, lp);
+            if (style == current) currentView = option;
+        }
+        showPopup(tile, "Choose a look for " + app.label, row);
+        View focusFirst = currentView;
+        if (focusFirst != null) row.post(() -> focusFirst.requestFocus());
+    }
+
+    // ---------------------------------------------------------------- Move
+
+    private View moveTile;
+    private TextView moveHint;
+    private int dockGap;
+
+    private List<String> savedOrder() {
+        String raw = prefs.getString("order", "");
+        List<String> out = new ArrayList<>();
+        for (String p : raw.split(",")) if (!p.isEmpty()) out.add(p);
+        return out;
+    }
+
+    private static int orderIndex(List<String> order, String pkg) {
+        int i = order.indexOf(pkg);
+        return i < 0 ? Integer.MAX_VALUE : i;
+    }
+
+    /** Lifts the tile; left/right slides it along the dock, OK places it, Back cancels. */
+    private void startMove(View tile) {
+        if (!tile.isAttachedToWindow()) return;
+        moveTile = tile;
+        tile.requestFocus();
+        tile.animate().scaleX(1.26f).scaleY(1.26f).translationY(-px(8))
+                .setDuration(ms(220)).setInterpolator(EASE_OUT).start();
+        moveHint.setVisibility(View.VISIBLE);
+        moveHint.setAlpha(0f);
+        moveHint.animate().alpha(1f).setDuration(ms(200)).start();
+    }
+
+    private void shiftMoveTile(int dir) {
+        int i = dockRow.indexOfChild(moveTile);
+        int j = i + dir;
+        if (j < 0 || j >= dockRow.getChildCount() || !(dockRow.getChildAt(j).getTag() instanceof String)) return;
+        View other = dockRow.getChildAt(j);
+        int mine = moveTile.getLeft(), theirs = other.getLeft();
+        // Move the neighbour rather than the lifted tile, so focus never leaves it.
+        dockRow.removeViewAt(j);
+        dockRow.addView(other, i);
+        fixDockMargins();
+        other.setTranslationX(theirs - mine);
+        other.animate().translationX(0).setDuration(ms(240)).setInterpolator(EASE_OUT).start();
+        moveTile.setTranslationX(mine - theirs);
+        moveTile.animate().translationX(0).setDuration(ms(240)).setInterpolator(EASE_OUT).start();
+        dockScroll.follow(moveTile);
+    }
+
+    private void endMove(boolean keep) {
+        View tile = moveTile;
+        moveTile = null;
+        moveHint.animate().alpha(0f).setDuration(ms(160))
+                .withEndAction(() -> moveHint.setVisibility(View.INVISIBLE)).start();
+        tile.animate().scaleX(1.16f).scaleY(1.16f).translationY(0)
+                .setDuration(ms(200)).setInterpolator(EASE_OUT).start();
+        if (keep) {
+            List<String> order = new ArrayList<>();
+            for (int k = 0; k < dockRow.getChildCount(); k++) {
+                Object tag = dockRow.getChildAt(k).getTag();
+                if (tag instanceof String) order.add((String) tag);
+            }
+            for (String p : savedOrder()) if (!order.contains(p)) order.add(p);
+            prefs.edit().putString("order", TextUtils.join(",", order)).apply();
+        } else {
+            pendingFocusPkg = (String) tile.getTag();
+            loadApps();
+        }
+    }
+
+    private void fixDockMargins() {
+        int n = dockRow.getChildCount();
+        for (int k = 0; k < n; k++) {
+            View c = dockRow.getChildAt(k);
+            LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) c.getLayoutParams();
+            lp.rightMargin = k < n - 1 ? dockGap : 0;
+            c.setLayoutParams(lp);
+        }
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent e) {
+        if (moveTile != null) {
+            int k = e.getKeyCode();
+            boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
+            if (k == KeyEvent.KEYCODE_DPAD_LEFT || k == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                if (down) shiftMoveTile(k == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1);
+                return true;
+            }
+            if (k == KeyEvent.KEYCODE_DPAD_CENTER || k == KeyEvent.KEYCODE_ENTER) {
+                if (!down) endMove(true);
+                return true;
+            }
+            if (k == KeyEvent.KEYCODE_BACK) {
+                if (!down) endMove(false);
+                return true;
+            }
+            if (k == KeyEvent.KEYCODE_DPAD_UP || k == KeyEvent.KEYCODE_DPAD_DOWN || k == KeyEvent.KEYCODE_MENU) {
+                return true;
+            }
+        }
+        return super.dispatchKeyEvent(e);
     }
 
     private View hiddenAppsTile(List<AppEntry> hidden) {
@@ -1052,7 +1250,7 @@ public class HomeActivity extends Activity {
             View f = getCurrentFocus();
             if (f != null && f.getTag() instanceof String && appsByPkg.containsKey(f.getTag())
                     && dockRow.indexOfChild(f) >= 0) {
-                showTileMenu(appsByPkg.get(f.getTag()));
+                showTileMenu(appsByPkg.get(f.getTag()), f);
                 return true;
             }
         }
