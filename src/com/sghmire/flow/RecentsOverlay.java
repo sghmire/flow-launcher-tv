@@ -34,6 +34,8 @@ public class RecentsOverlay extends FrameLayout {
         }
     }
 
+    static final int BACKDROP = 0xF2060A14;
+
     private static final DecelerateInterpolator EASE = new DecelerateInterpolator(2f);
 
     private final HomeActivity home;
@@ -46,7 +48,7 @@ public class RecentsOverlay extends FrameLayout {
     public RecentsOverlay(HomeActivity home) {
         super(home);
         this.home = home;
-        setBackgroundColor(0xF2060A14);
+        setBackgroundColor(BACKDROP);
         setVisibility(INVISIBLE);
         setClipChildren(false);
 

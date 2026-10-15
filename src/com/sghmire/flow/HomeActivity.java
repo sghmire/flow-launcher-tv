@@ -93,6 +93,11 @@ public class HomeActivity extends Activity {
     private SharedPreferences prefs;
     private String pendingFocusPkg;
     private ValueAnimator shrinkAnim;
+    /**
+     * Dark cover shown behind a closing app. It is the same color as the Recents backdrop, so a
+     * double-press of Home goes app -> dark -> Recents without home showing in between.
+     */
+    private View returnCover;
     private Drawable lastArt;
     private boolean lastFill;
     private float lastRadius;
@@ -344,6 +349,10 @@ public class HomeActivity extends Activity {
         dlp.bottomMargin = px(34);
         content.addView(dock, dlp);
 
+        returnCover = new View(this);
+        returnCover.setBackgroundColor(RecentsOverlay.BACKDROP);
+        returnCover.setVisibility(View.INVISIBLE);
+        root.addView(returnCover, match());
         recents = new RecentsOverlay(this);
         root.addView(recents, match());
         hero = new HeroView(this);
@@ -724,6 +733,8 @@ public class HomeActivity extends Activity {
         stage.setLayerType(View.LAYER_TYPE_NONE, null);
         hero.clear();
         hero.setAlpha(1f);
+        returnCover.animate().cancel();
+        returnCover.setVisibility(View.INVISIBLE);
         if (lastLaunched != null) lastLaunched.setAlpha(1f);
     }
 
@@ -754,6 +765,9 @@ public class HomeActivity extends Activity {
         // tells us after its fade, and a splash would flash up before Recents. Dimmed home
         // is safe for both cases; the tile flies back in once the fade is over.
         hero.setVisibility(View.INVISIBLE);
+        returnCover.animate().cancel();
+        returnCover.setAlpha(1f);
+        returnCover.setVisibility(View.VISIBLE);
         returnStaged = true;
     }
 
@@ -814,6 +828,8 @@ public class HomeActivity extends Activity {
         shrink.start();
         stage.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(ms(600))
                 .setInterpolator(COLLAPSE).start();
+        returnCover.animate().alpha(0f).setDuration(ms(420)).setInterpolator(COLLAPSE)
+                .withEndAction(() -> returnCover.setVisibility(View.INVISIBLE)).start();
     }
 
     // ---------------------------------------------------------------- Recents
