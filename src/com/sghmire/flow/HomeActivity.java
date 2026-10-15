@@ -88,6 +88,8 @@ public class HomeActivity extends Activity {
     /** Copy of the tile being opened or returned to; grows to full screen and back. */
     private HeroView hero;
     private RecentsOverlay recents;
+    private FolderOverlay folder;
+    private View focusBeforeFolder;
     /** Where the return animation should land when an app was opened from Recents. */
     private View returnTarget;
     private View focusBeforeRecents;
@@ -226,6 +228,10 @@ public class HomeActivity extends Activity {
                 recents.hide(true);
                 return;
             }
+            if (folder.isShowing()) {
+                folder.hide(true);
+                return;
+            }
         }
         // Home pressed while already home: glide back to the start of the dock.
         if (hasWindowFocus() && !returningFromApp && dockRow.getChildCount() > 0) {
@@ -239,6 +245,7 @@ public class HomeActivity extends Activity {
     public void onBackPressed() {
         // A home screen has nowhere to go back to; Back only closes the Recents screen.
         if (recents.isShowing()) recents.hide(true);
+        else if (folder.isShowing()) folder.hide(true);
     }
 
     // ---------------------------------------------------------------- UI
@@ -355,6 +362,8 @@ public class HomeActivity extends Activity {
         returnCover.setBackgroundColor(RecentsOverlay.BACKDROP);
         returnCover.setVisibility(View.INVISIBLE);
         root.addView(returnCover, match());
+        folder = new FolderOverlay(this);
+        root.addView(folder, match());
         recents = new RecentsOverlay(this);
         root.addView(recents, match());
         hero = new HeroView(this);
@@ -657,7 +666,7 @@ public class HomeActivity extends Activity {
     }
 
     /** On-screen bounds of a view, including its current focus zoom. */
-    private RectF boundsOf(View v) {
+    RectF boundsOf(View v) {
         int[] loc = new int[2];
         v.getLocationInWindow(loc);
         return new RectF(loc[0], loc[1], loc[0] + v.getWidth() * v.getScaleX(), loc[1] + v.getHeight() * v.getScaleY());
@@ -727,6 +736,7 @@ public class HomeActivity extends Activity {
             startActivity(intent, opts.toBundle());
             returningFromApp = true;
             if (recents.isShowing()) recents.hide(false);
+            if (folder.isShowing()) folder.hide(false);
         } catch (Exception e) {
             Log.w(TAG, "launch failed: " + e);
             Toast.makeText(this, "Couldn't open that", Toast.LENGTH_SHORT).show();
@@ -940,6 +950,46 @@ public class HomeActivity extends Activity {
         return HeroView.edgeColor(bannerFor(pkg), 0xFF1E2023);
     }
 
+    // ---------------------------------------------------------------- Hidden apps folder
+
+    void onFolderHidden() {
+        stage.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        View f = focusBeforeFolder;
+        focusBeforeFolder = null;
+        if (f != null && f.isAttachedToWindow()) f.requestFocus();
+        else if (dockRow.getChildCount() > 0) dockRow.getChildAt(dockRow.getChildCount() - 1).requestFocus();
+    }
+
+    /** Opens a hidden app from the folder; coming back lands on the Hidden tile. */
+    void openHidden(View tile, String pkg, float radius, View hiddenTile) {
+        Intent i = getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
+        if (i == null) {
+            AppEntry e = appsByPkg.get(pkg);
+            if (e == null) return;
+            i = new Intent(Intent.ACTION_MAIN).setComponent(e.component);
+        }
+        returnTarget = hiddenTile;
+        focusBeforeFolder = hiddenTile;
+        launch(tile, i, bannerFor(pkg), false, radius);
+    }
+
+    void showHiddenMenu(String pkg) {
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(labelFor(pkg))
+                .setItems(new CharSequence[] {"Show on home", "App info"}, (d, which) -> {
+                    if (which == 0) {
+                        folder.hide(false);
+                        pendingFocusPkg = pkg; // land on the app that came back
+                        setHidden(pkg, false);
+                    } else {
+                        startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                .setData(android.net.Uri.fromParts("package", pkg, null))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    }
+                })
+                .show();
+    }
+
     // ---------------------------------------------------------------- Hiding apps
 
     private Set<String> hiddenApps() {
@@ -983,9 +1033,8 @@ public class HomeActivity extends Activity {
         content.setOrientation(LinearLayout.HORIZONTAL);
         content.setGravity(Gravity.CENTER);
         ImageView icon = new ImageView(this);
-        icon.setImageResource(R.drawable.ic_hidden);
-        icon.setAlpha(0.9f);
-        content.addView(icon, new LinearLayout.LayoutParams(px(24), px(24)));
+        icon.setImageResource(R.drawable.ic_flow_mark);
+        content.addView(icon, new LinearLayout.LayoutParams(px(30), px(21)));
         LinearLayout text = new LinearLayout(this);
         text.setOrientation(LinearLayout.VERTICAL);
         text.setPadding(px(9), 0, 0, 0);
@@ -1004,15 +1053,11 @@ public class HomeActivity extends Activity {
         tile.addView(content, match());
         attachFocusEffect(tile, 1.16f);
         tile.setOnClickListener(v -> {
-            CharSequence[] names = new CharSequence[hidden.size()];
-            for (int i = 0; i < names.length; i++) names[i] = hidden.get(i).label;
-            new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                    .setTitle("Show on home again")
-                    .setItems(names, (d, which) -> {
-                        pendingFocusPkg = hidden.get(which).pkg; // land on the app that came back
-                        setHidden(pendingFocusPkg, false);
-                    })
-                    .show();
+            List<String> pkgs = new ArrayList<>();
+            for (AppEntry e : hidden) pkgs.add(e.pkg);
+            focusBeforeFolder = v;
+            stage.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+            folder.show(pkgs, v);
         });
         return tile;
     }

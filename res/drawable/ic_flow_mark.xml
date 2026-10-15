@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flow's two-wave mark, without a background, for use on tiles. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="40dp" android:height="28dp"
+    android:viewportWidth="125" android:viewportHeight="76">
+    <path android:fillColor="#FF9DB8FF"
+        android:pathData="M0,8 C30,-12 60,28 90,8 C105,-2 115,0 125,6 L125,22 C115,16 105,14 90,24 C60,44 30,4 0,24 Z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M0,48 C30,28 60,68 90,48 C105,38 115,40 125,46 L125,62 C115,56 105,54 90,64 C60,84 30,44 0,64 Z" />
+</vector>
