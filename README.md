@@ -26,7 +26,7 @@ A fast, minimal, Apple TV-inspired launcher for Android TV and Google TV built w
 - **Hidden App Vault**: Organize rarely used or private apps in a dedicated hidden folder tile at the end of the grid.
 - **App Switcher (Recents)**: Apple TV-style fullscreen task switcher with swipe-up to dismiss.
 - **Flow Clock Screensaver**: Burn-in safe, drift-compensated OLED clock in Helvetica typography.
-- **Pure Native Performance**: Zero third-party runtime libraries, under 1 MB APK size, and high-framerate remote navigation.
+- **Pure Native Performance**: Zero third-party runtime libraries, small size, and high-framerate remote navigation.
 
 ---
 
