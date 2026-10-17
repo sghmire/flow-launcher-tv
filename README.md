@@ -40,9 +40,15 @@ Moving down out of the glass dock smoothly slides the entire 6-column grid upwar
 
 ### Opening an App (Hero Transition)
 
-Expanding app-opening transition followed by a seamless collapsing return when pressing the Home button.
+Expanding app-opening transition from the focused dock tile directly into the app's splash and landing screen.
 
-![App opening and return](docs/images/opening.gif)
+![App opening](docs/images/opening.gif)
+
+### App-to-Home Return Animation
+
+Pressing Home from inside an app collapses the viewport smoothly back down into the dock tile without force-stopping the running application.
+
+![App return animation](docs/images/app-return.gif)
 
 ### 4-Way App Reordering
 
