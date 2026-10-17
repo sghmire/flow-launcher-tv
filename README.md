@@ -12,7 +12,7 @@ A fast, minimal, Apple TV-inspired launcher for Android TV and Google TV built w
 > Flow Launcher is maintained as a closed-source project. Pre-built, signed APKs are distributed directly via [GitHub Releases](https://github.com/sghmire/flow-launcher-tv/releases).
 >
 > **Interested in collaborating?**  
-> If you are an Android developer or designer wanting to contribute or collaborate on Flow, access to the private source code repository is happily provided upon request! Please reach out by opening a [GitHub Issue](https://github.com/sghmire/flow-launcher-tv/issues) or emailing **[sgrghimire007@gmail.com](mailto:sgrghimire007@gmail.com)**.
+> If you are an Android developer or designer wanting to contribute or collaborate on Flow, access to the private source code repository is happily provided upon request! Please reach out by opening a [GitHub Issue](https://github.com/sghmire/flow-launcher-tv/issues) or emailing **[contact@glideformstudio.com](mailto:contact@glideformstudio.com)**.
 
 ---
 
@@ -132,7 +132,7 @@ adb shell appops set com.gfs.flow GET_USAGE_STATS allow
 ## Feedback & Collaboration
 
 - **Bug Reports & Feature Requests**: Please open an issue in the [GitHub Issues](https://github.com/sghmire/flow-launcher-tv/issues) tracker.
-- **Source Code Access**: If you are interested in collaborating or inspecting the codebase, reach out to **[sgrghimire007@gmail.com](mailto:sgrghimire007@gmail.com)**.
+- **Source Code Access**: If you are interested in collaborating or inspecting the codebase, reach out to **[contact@glideformstudio.com](mailto:contact@glideformstudio.com)**.
 
 ---
 
