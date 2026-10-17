@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="flow_bg">#FF0F1012</color>
+
+    <style name="Theme.Flow" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/flow_bg</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowShowWallpaper">false</item>
+        <item name="android:colorAccent">#FFFFFFFF</item>
+    </style>
+</resources>

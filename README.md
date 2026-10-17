@@ -1,18 +1,18 @@
 # Flow Launcher
 
-A compact Android TV home screen built with native Java views, laid out like the Apple TV home screen: a Top Shelf of content from the focused app, a six-column app grid, an app-switcher style Recents screen, and animated app transitions.
+A compact Android TV home screen built with native Java views: a smooth blue-charcoal backdrop, a scrolling app dock, contextual recommendations, and animated app transitions.
 
 ![Flow home screen](docs/images/home.png)
 
+
 ## Features
 
-- Apple TV style layout: Top Shelf above a six-column grid of 5:3 app tiles, with the top row in a semi-transparent dark dock as in tvOS 26 and the next row peeking below it. The focused tile quickly grows and lifts with a soft shadow (lower rows also show its name), and it tips when you reach the edge of the grid.
-- The Top Shelf follows apps in the top row, and the backdrop picks up a soft glow in that app's color. At rest only the Top Shelf and the top row show; moving down to the next rows slides the whole page up.
+- Remote-first navigation with animated focus and a six-tile dock viewport.
 - Contextual content from Android TV channels and Watch Next, where installed apps publish it.
 - Expanding app-opening and collapsing return animations.
-- Reorder apps, hide them from the home screen, and restore them from **Hidden apps** under the settings gear.
+- Reorder apps, hide them in a folder, and restore them to the home screen.
 - Per-app tile styles: original banner, icon and name, icon on dark, name only, and supported brand logos. Custom pictures appear when configured.
-- Recent apps in an Apple TV style app switcher: large centered cards with the app's icon and name, reopen, swipe up to dismiss, and Clear all.
+- Recent apps with reopen, dismiss, and Clear all actions.
 - Clock, Android settings shortcut, and a minimal Flow Clock screensaver.
 - Native Android implementation with no third-party runtime libraries.
 
@@ -46,7 +46,7 @@ Press Home from an app to return to the dock with a collapsing tile animation. R
 
 Requires **Android TV / Google TV running Android 9 or newer**. Package ID: `com.gfs.flow`.
 
-1. Download the latest Flow APK from [Releases](https://github.com/sghmire/flow-launcher-tv/releases/latest) and transfer it to your TV.
+1. Download the shared Flow release APK and transfer it to your TV.
 2. Open the APK with a file manager. If prompted, allow that file manager to **install unknown apps**, then choose **Install**.
 3. Open **Flow** from your apps list.
 4. To use Flow when you press Home, choose it in your TV's default Home app settings or Home chooser, if supported.
@@ -58,7 +58,7 @@ Home-button support varies by TV. You can switch back through the default Home s
 <details>
 <summary>Optional setup: content rows, recent-app history, and ADB</summary>
 
-Allow TV-listing access if Flow requests it. Recents always lists apps opened from Flow; to include apps opened elsewhere (for example from a voice search or another app), enable **Usage access** for Flow in the TV settings where available. Content rows depend on what installed apps publish and may be empty.
+Allow TV-listing access if Flow requests it. For recent-app history, enable **Usage access** for Flow in the TV settings where available. Content rows depend on what installed apps publish and may be empty.
 
 If you prefer installing from a computer, enable ADB debugging on the TV and authorize your computer. Use the address and port shown by the TV; wireless pairing, when required, uses a separate pairing port.
 
@@ -89,7 +89,7 @@ adb shell cmd package set-home-activity com.gfs.flow/.HomeActivity
 
 ## Clock screensaver
 
-Flow's gear opens Android settings directly (when apps are hidden, it first offers Settings or Hidden apps). Select **Flow Clock** in your TV's screensaver settings if that menu is available. Android manages the idle delay and activation. Some firmware, including the tested onn. box, does not expose a screensaver picker; selecting Flow Clock on those devices requires ADB.
+Open Flow's **gear → Screensaver — Flow Clock**, then select **Flow Clock** in the TV's screensaver settings. Set the idle delay and use the system preview/start option where available. Android controls activation; selecting the shortcut alone does not change your screensaver.
 
 The screensaver shows a dim clock centered on black, follows the device's 12/24-hour preference, and exits on remote input. It runs in a separate process and creates its view only when started, so the launcher does not preload screensaver images or animations. There are no images or per-frame animation loops. Actual memory overhead has not yet been measured on a TV. Screensaver settings and availability vary by firmware.
 
@@ -97,23 +97,89 @@ The screensaver shows a dim clock centered on black, follows the device's 12/24-
 
 | Button | Action |
 | --- | --- |
-| Left / Right / Up / Down | Move between tiles in the grid or between cards |
-| Up from the top row | Focus the first Top Shelf card, when available |
-| Down from the Top Shelf | Return to the app it belongs to |
+| Left / Right | Move between tiles or cards |
+| Up from the dock | Focus the first content card, when available |
+| Down from content | Return to the corresponding dock app |
 | OK / Enter | Open the focused app, card, folder, or action |
-| Hold OK, or Menu on an app | Open Move, Change icon, Hide from home, and App info |
-| D-pad in Move mode | Reorder the selected app through the grid |
+| Hold OK, or Menu on a dock app | Open Move, Change icon, Hide from home, and App info |
+| Left / Right in Move mode | Reorder the selected app |
 | OK / Back in Move mode | Save / cancel the move |
-| Hold OK, or Menu, on a hidden app | Show it on home again, Change icon, or App info |
-| Back | Close the current menu, Hidden apps, or Recents overlay |
-| Home | Return to Flow; while already home, return to the first app |
-| Double Home, or an app-switch key | Open Recents when the TV delivers these keys to Flow |
+| Back | Close the current menu, folder, or Recents overlay |
+| Home | Return to Flow; while already home, reset to the start of the dock |
+| Double Home | Open Recents when Home events are delivered to Flow |
 | Up on a recent app | Dismiss it and request background-process cleanup |
 
-Recents lists apps opened from Flow, plus system usage history when Flow has Usage access (a hint appears in Recents when it does not). It is not a system task-manager snapshot. Dismiss/Clear all is not a guaranteed force-stop; Android and device firmware control background-process behavior.
+Recents is based on usage history, not a system task-manager snapshot. Dismiss/Clear all is not a guaranteed force-stop; Android and device firmware control background-process behavior.
 
+## Build with Android Studio
 
+Open this repository folder in Android Studio and let Gradle sync. The `app` module uses the existing `src/` and `res/` directories. Use the bundled Gradle wrapper and Android Studio's embedded JDK (17 or newer).
 
+For the Run configuration, select **Android App**, name it **Flow**, choose module **app**, and leave **Launch: Default Activity**. Select your TV and press Run. Debug builds use the development signing key.
+
+For a shareable APK, choose **Build → Generate Signed App Bundle / APK → APK**, select module **app**, then your release keystore, alias, and passwords. Select **release** and finish the wizard. Keep signing secrets outside the repository and use the same release key for updates. A debug-signed install must be removed before installing a differently signed release with the same package ID; saved settings will be lost.
+
+Command-line builds:
+
+```sh
+./gradlew :app:assembleDebug
+./gradlew :app:assembleRelease
+```
+
+Outputs are in `app/build/outputs/apk/debug/` and `app/build/outputs/apk/release/`. The command-line release APK is **unsigned** until you sign it; the Android Studio wizard signs its output with the key you select. Gradle uses Android Gradle Plugin 9.3.2 and Gradle 9.5.0. Install SDK platform 34 and any build tools requested during sync.
+
+## Build with the standalone script
+
+The build script uses Android SDK tools directly: `aapt2 → javac → d8 → zipalign → apksigner`.
+
+Install these prerequisites:
+
+- JDK 21 (the tested setup uses JetBrains Runtime 21).
+- Android SDK platform **34**.
+- Android SDK build-tools **36.0.0** and **34.0.0** (the latter supplies `core-lambda-stubs.jar`).
+- Android platform-tools (`adb`), Bash, and `zip`.
+- A standard Android debug keystore at `~/.android/debug.keystore`.
+
+Set paths for your machine:
+
+```sh
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export JAVA_HOME="/path/to/jdk-21/Contents/Home"
+./build.sh
+```
+
+If no debug keystore exists, create one once:
+
+```sh
+mkdir -p "$HOME/.android"
+"$JAVA_HOME/bin/keytool" -genkeypair -keystore "$HOME/.android/debug.keystore" \
+  -storepass android -keypass android -alias androiddebugkey \
+  -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Output: **`build/flow.apk`**, signed with the local debug key. This is a development build, not a production release signing workflow. The script recreates `build/` on every run.
+
+To build and install together, explicitly choose your device (the script otherwise has a developer-specific default):
+
+```sh
+ANDROID_SERIAL=TV_IP:DEBUG_PORT ./build.sh install
+```
+
+Version: **0.1**. Minimum SDK: **28**; target SDK: **34**; compile platform: **34**. Both build paths target Android 14. On Android 14 and newer, dismissing a recent app only removes its card; Android does not allow Flow to kill other apps’ processes.
+
+## Device measurements
+
+On **2026-10-15**, an **onn. 4K Streaming Box running Android 14**, with a **1920 × 1080 UI override**, produced:
+
+| Measurement | Result |
+| --- | ---: |
+| Built APK | 62,295 bytes (60.8 KiB) |
+| Process PSS snapshot | 118.8 MiB |
+| Dock navigation frames | 307 |
+| Janky frames | 8 / 307 (2.61%) |
+| Frame time p50 / p90 / p99 | 12 / 18 / 36 ms |
+
+These measurements predate the background refresh. This is one warm navigation sample, not a controlled benchmark or an improvement claim. APK size is separate from runtime memory. Captures and measurements include the existing local source edits; the documentation commit does not include those edits. See [measurement provenance and raw results](docs/measurements/README.md).
 
 ## Artwork
 
