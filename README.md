@@ -50,11 +50,15 @@ Hold OK or press Menu to lift any tile. Directional keys slide the tile across b
 
 ![4-way app reordering](docs/images/reorder.gif)
 
-### Personalization & Settings
+### Personalization & App Switcher
 
-| App Context Menu | Full AppGrid |
+| App Context Menu | Tile Styles Customization |
 | --- | --- |
-| ![App menu](docs/images/app-menu.png) | ![AppGrid](docs/images/grid.png) |
+| ![App menu](docs/images/app-menu.png) | ![Tile styles](docs/images/tile-styles.png) |
+
+| tvOS AppGrid (6 Columns) | Fullscreen Recents Switcher |
+| --- | --- |
+| ![AppGrid](docs/images/grid.png) | ![Recents switcher](docs/images/recents.png) |
 
 ### Flow Clock Screensaver
 
