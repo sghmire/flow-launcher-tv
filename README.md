@@ -2,8 +2,8 @@
 
 A fast, minimal, Apple TV-inspired launcher for Android TV and Google TV built with 100% native views, fluid spring physics, and zero runtime dependencies.
 
-[![Download APK](https://img.shields.io/badge/Download-Flow%20v0.4%20APK-007AFF?style=for-the-badge&logo=android&logoColor=white)](https://github.com/sghmire/flow-launcher-tv/releases/tag/v0.4)
-[![Release](https://img.shields.io/badge/Release-v0.4-blue?style=for-the-badge)](https://github.com/sghmire/flow-launcher-tv/releases/tag/v0.4)
+[![Download APK](https://img.shields.io/badge/Download-Flow%20v0.5%20APK-007AFF?style=for-the-badge&logo=android&logoColor=white)](https://github.com/sghmire/flow-launcher-tv/releases/tag/v0.5)
+[![Release](https://img.shields.io/badge/Release-v0.5-blue?style=for-the-badge)](https://github.com/sghmire/flow-launcher-tv/releases/tag/v0.5)
 
 ![Flow home screen](docs/images/home.png)
 
@@ -80,11 +80,11 @@ Requires **Android TV / Google TV running Android 9.0 (API 28) or newer**.
 Package ID: `com.gfs.flow`
 
 ### 📥 Download Release APK
-- **Latest Release**: [Flow Launcher v0.4 (GitHub Releases)](https://github.com/sghmire/flow-launcher-tv/releases/tag/v0.4)
-- **Direct Download**: [flow-v0.4.apk](https://github.com/sghmire/flow-launcher-tv/releases/download/v0.4/flow-v0.4.apk)
+- **Latest Release**: [Flow Launcher v0.5 (GitHub Releases)](https://github.com/sghmire/flow-launcher-tv/releases/tag/v0.5)
+- **Direct Download**: [flow-v0.5.apk](https://github.com/sghmire/flow-launcher-tv/releases/download/v0.5/flow-v0.5.apk)
 
 ### Method 1: Sideload via USB or File Manager
-1. Download the latest `flow-v0.4.apk` from the [v0.4 Release](https://github.com/sghmire/flow-launcher-tv/releases/tag/v0.4) page.
+1. Download the latest `flow-v0.5.apk` from the [v0.5 Release](https://github.com/sghmire/flow-launcher-tv/releases/tag/v0.5) page.
 2. Transfer the APK to your TV using a USB flash drive or an app like **Send Files to TV**.
 3. Open the APK with any TV file manager. If prompted, grant permission to **Install unknown apps**, then choose **Install**.
 4. Open **Flow** from your apps list.
@@ -94,7 +94,7 @@ If your TV has Network or USB Debugging enabled:
 
 ```sh
 adb connect TV_IP:PORT
-adb install -r flow.apk
+adb install -r flow-v0.5.apk
 adb shell am start -n com.gfs.flow/.HomeActivity
 ```
 
