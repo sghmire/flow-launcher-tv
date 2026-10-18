@@ -100,6 +100,8 @@ adb shell am start -n com.gfs.flow/.HomeActivity
 
 ### Optional Setup
 
+On first launch Flow asks for the TV listings and Usage access permissions itself. The commands below are for when you skipped a prompt or your TV has no Usage access screen.
+
 **Set Flow as your default launcher:**
 ```sh
 adb shell cmd package set-home-activity com.gfs.flow/.HomeActivity
@@ -129,6 +131,7 @@ adb shell appops set com.gfs.flow GET_USAGE_STATS allow
 | **D-pad in Move Mode** | Slide tile Up, Down, Left, or Right to reorder |
 | **OK / Back in Move Mode** | Save / cancel tile reorder |
 | **Back** | Dismiss menus/folders; return from grid to dock |
+| **Back on Home** | Start the screensaver when nothing else is open |
 | **Home** | Return to Flow home; resets to the first app |
 | **Double Home** | Open the Recents app switcher (where supported by TV firmware) |
 | **Up in Recents** | Dismiss the selected app card |
