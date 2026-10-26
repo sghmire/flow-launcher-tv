@@ -18,19 +18,19 @@ Want to collaborate? Android developers and designers are welcome, and access to
 
 The focused tile grows to fill the screen and lands right in the app.
 
-![Opening an app](docs/images/opening.webp)
+![Opening an app](docs/images/flow_opening.webp)
 
 ### Close an app
 
 Press Home and the app shrinks back into its tile. The app keeps running.
 
-![Closing an app](docs/images/closing.webp)
+![Closing an app](docs/images/flow_closing.webp)
 
 ### Switch apps with Recents
 
 Double-press Home to fan out your recent apps, browse them, and jump straight back in.
 
-![Switching apps in Recents](docs/images/recents.webp)
+![Switching apps in Recents](docs/images/flow_recents.webp)
 
 ## Installation
 
