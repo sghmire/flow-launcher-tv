@@ -2,7 +2,7 @@
 
 **An Apple TV-style home screen for Android TV and Google TV.** Fluid spring animations, a glass dock, and an app switcher, all in a tiny native APK with zero dependencies.
 
-[![Download APK](https://img.shields.io/badge/Download-Flow%20v0.8%20APK-007AFF?style=for-the-badge&logo=android&logoColor=white)](https://github.com/sghmire/flow-launcher-tv/releases/tag/v0.8)
+[![Download APK](https://img.shields.io/badge/Download-Flow%20v0.8%20APK-007AFF?style=for-the-badge&logo=android&logoColor=white)](https://github.com/sghmire/flow-launcher-tv/releases/tag/v0.8b)
 
 ![Flow home screen](docs/images/home.png)
 
