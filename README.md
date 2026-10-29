@@ -64,6 +64,6 @@ adb shell cmd package set-home-activity com.gfs.flow/.HomeActivity
 ## Feature Requests
 
 1. Feature requests are welcome but shouldn't be drastic such that they alter the apple tv like appearance and experience  of the Flow Launcher.
-2. Feature requests will be analyzed and implemented such that it doesn't affect the overall performance of the launcher as well.
+2. Feature requests will be analyzed and implemented such that it doesn't affect the overall performance of the launcher massively. 
 
 
