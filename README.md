@@ -60,3 +60,10 @@ adb shell cmd package set-home-activity com.gfs.flow/.HomeActivity
 | **Double Home** | Open Recents (where the TV allows it) |
 | **Up in Recents** | Dismiss an app |
 | **Menu** | Flow settings |
+
+## Feature Requests
+
+1. Feature requests are welcome but shouldn't be drastic such that they alter the apple tv like appearance and experience  of the Flow Launcher.
+2. Feature requests will be analyzed and implemented such that it doesn't affect the overall performance of the launcher as well.
+
+
