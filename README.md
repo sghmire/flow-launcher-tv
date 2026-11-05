@@ -36,7 +36,7 @@ Double-press Home to fan out your recent apps, browse them, and jump straight ba
 
 Requires **Android TV or Google TV on Android 9 or newer**.
 
-1. Download `Flow-v0.8.apk` from the [latest release](https://github.com/sghmire/flow-launcher-tv/releases/tag/v0.8).
+1. Download `Flow-v0.10.8.apk` from the [latest release](https://github.com/sghmire/flow-launcher-tv/releases/tag/v0.10.8).
 2. Copy it to your TV (USB drive or an app like **Send Files to TV**), open it in a file manager, allow **Install unknown apps** if asked, and choose **Install**.
 3. Open **Flow**, then pick it as your Home app in the TV's settings so the Home button takes you there.
 
