@@ -9,7 +9,7 @@
 ## Key Features
 
 - **tvOS-like Home.** The tile size and spacing, focus glow, and how the grid scrolls and slides all follow tvOS. Your top row sits in a glass dock, with the Top Shelf above it.
-- **Liquid Glass or Matte.** Each comes in Dark and Light. Liquid Glass is clear and bends what's behind it; Matte is softly frosted.
+- **Liquid Glass, Clear Glass or Matte.** Each comes in Dark and Light. Liquid Glass is clear and bends what's behind it; Clear Glass is lighter and lets a video wallpaper play straight through; Matte is softly frosted.
 - **Top Shelf and content rows.** Continue Watching and picks from your apps, shown above the dock as large cards. Apps without content fill the screen with their own art when you focus them.
 - **Up Next.** A full-screen view of everything you're watching, with rows of cards from each app, like Apple's TV app.
 - **Video wallpapers.** Play Flow Video, Flow Photo, or your own photos and videos behind Home. Rotate can mix photos and videos and change them every 10 or 30 minutes, every hour, or every day.
