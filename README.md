@@ -20,6 +20,7 @@
 - **Search.** Find apps, shows from your apps, and hand anything else to Google TV's search.
 - **Folders and Arrange Apps.** Create named folders, or sort Home by hand, by name, by most used, or by install date.
 - **App animations.** Opening an app makes its tile grow to fill the screen. Pressing Home shrinks it back into its tile.
+- **Navigation sounds.** A soft tick as focus moves and a click as you choose, in the spirit of Apple TV's. Turn them off in Settings › Appearance.
 - **Screen saver, profile, and button mapping.** A Flow Clock screen saver with photos or videos, animal or monogram profile pictures, and remote buttons you can remap.
 - **TV settings in Flow's style.** Wi‑Fi, resolution, Bluetooth, language, and more, laid out like tvOS Settings. Some of these need the optional [Advanced mode](#advanced-mode-shizuku).
 
