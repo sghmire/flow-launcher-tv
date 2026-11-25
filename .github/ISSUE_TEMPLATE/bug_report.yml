@@ -1,0 +1,66 @@
+name: Bug report
+description: Something in Flow doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping make Flow better. Flow is made by one person in their spare time, so please:
+        - **One problem per issue.** Several small things? Put them in one issue as a list.
+        - **Test on the latest release first.** Please don't open new issues to report each release's status; add a comment to the existing issue instead.
+        - Flow runs **without root**. Some things belong to Android and can't be changed from a launcher. See [What Flow can't change](https://github.com/sghmire/flow-launcher-tv#what-flow-cant-change).
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you file
+      options:
+        - label: I'm on the latest Flow release.
+          required: true
+        - label: I searched the open and closed issues, and this isn't already reported.
+          required: true
+        - label: This issue is about one problem.
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: Flow version
+      description: Settings › About Flow › Version
+      placeholder: "0.18.2"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: TV device and Android version
+      placeholder: "Google TV Streamer, Android 14"
+    validations:
+      required: true
+  - type: dropdown
+    id: shizuku
+    attributes:
+      label: Advanced mode (Shizuku)
+      options:
+        - "On"
+        - "Off"
+        - "Not sure"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Press ...
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happens, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, video or logs (optional)

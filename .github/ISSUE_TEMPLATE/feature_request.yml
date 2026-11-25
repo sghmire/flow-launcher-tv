@@ -1,0 +1,29 @@
+name: Suggestion
+description: An idea to make Flow better.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Suggestions are welcome. Each one is weighed against Flow's Apple TV-like look and its speed, so not every idea will be taken up.
+        Please put related ideas together in **one** suggestion rather than opening several.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched the open and closed issues, and this hasn't been suggested yet.
+          required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your suggestion
+      description: What should Flow do? Screenshots of how Apple TV or another launcher does it help a lot.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it would help
+    validations:
+      required: true

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: What Flow can't change
+    url: https://github.com/sghmire/flow-launcher-tv#what-flow-cant-change
+    about: Flow runs without root. Read this before filing; some things belong to Android, not Flow.

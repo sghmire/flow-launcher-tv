@@ -152,7 +152,16 @@ Flow is closed source. Signed APKs are published on [GitHub Releases](https://gi
 
 Want to collaborate? Android developers and designers are welcome, and access to the private source repository is available on request. Open a [GitHub Issue](https://github.com/sghmire/flow-launcher-tv/issues) or email **[contact@glideformstudio.com](mailto:contact@glideformstudio.com)**.
 
+## What Flow can't change
+
+Flow is a launcher, and it runs without root. Even with [Advanced mode](#advanced-mode-shizuku), some things belong to Android and can't be changed by Flow:
+
+- **Switching between Android users.** Android does the switch. The wait while it changes users, and the moments after while the new user starts, are Android's.
+- **Android's own names and screens.** For example, the name Android gives a user, or Android's switching screen.
+- **Other apps' content.** Rows like Continue Watching show what each app shares with the TV, when it shares it.
+
 ## Feature Requests
 
 1. Requests are welcome, but they shouldn't change Flow's Apple TV-like look and experience.
 2. Each request is checked so it won't noticeably slow the launcher down.
+3. Please use the [issue forms](https://github.com/sghmire/flow-launcher-tv/issues/new/choose): one problem or idea per issue, tested on the latest release.
