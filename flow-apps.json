@@ -1,0 +1,10 @@
+{
+  "apps": [
+    {
+      "name": "Flow TV",
+      "package": "com.gfs.flowtv",
+      "about": "Live TV from your IPTV playlists",
+      "asset": "FlowTV"
+    }
+  ]
+}
