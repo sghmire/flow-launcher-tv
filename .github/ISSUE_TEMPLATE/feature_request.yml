@@ -25,5 +25,6 @@ body:
     id: why
     attributes:
       label: Why it would help
+      description: Optional.
     validations:
-      required: true
+      required: false
